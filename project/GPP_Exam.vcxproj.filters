@@ -13,5 +13,6 @@
     <ClInclude Include="EDecisionMaking.h" />
     <ClInclude Include="EBehaviorTree.h" />
     <ClInclude Include="SteeringBehaviours.h" />
+    <ClInclude Include="Behaviors.h" />
   </ItemGroup>
 </Project>

@@ -115,6 +115,22 @@ void Plugin::Update(float dt)
 }
 
 //Update
+
+//Set up world states for GOAP, just a bunch of booleans
+struct WorldState
+{
+	bool seeEnemy{};
+	bool lookingAt{};
+	bool inPickupRange{};
+	bool lowHP{};
+	bool lowEnergy{};
+};
+
+void UpdateWorldState(const AgentInfo& agentInfo, const vector<HouseInfo>& houseInfos, const vector<EntityInfo>& entityInfos) //Intensive function and performance overhead of GOAP
+{
+	
+}
+
 //This function calculates the new SteeringOutput, called once per frame
 SteeringPlugin_Output Plugin::UpdateSteering(float dt)
 {
