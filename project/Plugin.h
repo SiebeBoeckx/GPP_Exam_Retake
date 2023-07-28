@@ -35,6 +35,20 @@ private:
 	float m_AngSpeed = 0.f; //Demo purpose
 
 	UINT m_InventorySlot = 0;
+
+	//Set up world states for GOAP, just a bunch of booleans
+	struct WorldState
+	{
+		bool seeEnemy{};
+		bool seeItem{};
+		bool seePurge{};
+		bool lookingAt{};
+		bool inPickupRange{};
+		bool lowHP{};
+		bool lowEnergy{};
+	};
+
+	void UpdateWorldState(WorldState& worldState, const AgentInfo& agentInfo, const std::vector<HouseInfo>& houseInfos, const std::vector<EntityInfo>& entityInfos);
 };
 
 //ENTRY

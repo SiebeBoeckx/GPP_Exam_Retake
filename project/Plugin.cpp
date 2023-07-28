@@ -115,22 +115,6 @@ void Plugin::Update(float dt)
 }
 
 //Update
-
-//Set up world states for GOAP, just a bunch of booleans
-struct WorldState
-{
-	bool seeEnemy{};
-	bool lookingAt{};
-	bool inPickupRange{};
-	bool lowHP{};
-	bool lowEnergy{};
-};
-
-void UpdateWorldState(const AgentInfo& agentInfo, const vector<HouseInfo>& houseInfos, const vector<EntityInfo>& entityInfos) //Intensive function and performance overhead of GOAP
-{
-	
-}
-
 //This function calculates the new SteeringOutput, called once per frame
 SteeringPlugin_Output Plugin::UpdateSteering(float dt)
 {
@@ -257,4 +241,85 @@ vector<EntityInfo> Plugin::GetEntitiesInFOV() const
 	}
 
 	return vEntitiesInFOV;
+}
+
+void Plugin::UpdateWorldState(WorldState& worldState, const AgentInfo& agentInfo, const vector<HouseInfo>& houseInfos, const vector<EntityInfo>& entityInfos) //Intensive function and performance overhead of GOAP
+{
+	//reset worldState
+	worldState.seeEnemy = false;
+	worldState.seeItem = false;
+	worldState.seePurge = false;
+	worldState.lookingAt = false;
+	worldState.inPickupRange = false;
+	worldState.lowHP = false;
+	worldState.lowEnergy = false;
+	//==========================================
+
+	vector<const EntityInfo*> enemies{};
+	vector<const EntityInfo*> items{};
+
+#pragma region FOV entity checks
+	for (auto& e : entityInfos)
+	{
+		switch (e.Type)
+		{
+		case eEntityType::ENEMY:
+			worldState.seeEnemy = true;
+			enemies.push_back(&e);
+			break;
+		case eEntityType::ITEM:
+			worldState.seeItem = true;
+			items.push_back(&e);
+			break;
+		case eEntityType::PURGEZONE:
+			worldState.seePurge = true;
+			break;
+		default:
+			std::cout << "Check visible entity switch, something's wrong there\n";
+		}
+	}
+#pragma endregion
+
+#pragma region LookAt checks and range check for items
+	if (!enemies.empty())
+	{
+		EntityInfo target = *enemies[0];
+		//LookAt
+		const Elite::Vector2 desiredVector = Elite::Vector2(target.Location - agentInfo.Position);
+		const Elite::Vector2 lookVector{ std::cosf(agentInfo.Orientation), std::sinf(agentInfo.Orientation) };
+
+		if (fabsf(Elite::AngleBetween(lookVector, desiredVector)) < 0.1f)
+		{
+			worldState.lookingAt = true;
+		}
+	}
+	else if (!items.empty())
+	{
+		EntityInfo target = *items[0];
+		//LookAt
+		const Elite::Vector2 desiredVector = Elite::Vector2(target.Location - agentInfo.Position);
+		const Elite::Vector2 lookVector{ std::cosf(agentInfo.Orientation), std::sinf(agentInfo.Orientation) };
+
+		if (fabsf(Elite::AngleBetween(lookVector, desiredVector)) < 0.1f)
+		{
+			worldState.lookingAt = true;
+		}
+
+		if (target.Location.DistanceSquared(agentInfo.Position) <= agentInfo.GrabRange * agentInfo.GrabRange)
+		{
+			worldState.inPickupRange = true;
+		}
+	}
+#pragma endregion
+
+#pragma region Agent checks
+	if(agentInfo.Health <= 3.f)
+	{
+		worldState.lowHP = true;
+	}
+	if(agentInfo.Energy <= 3.f)
+	{
+		worldState.lowEnergy = true;
+	}
+#pragma endregion
 }
