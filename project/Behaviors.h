@@ -24,7 +24,7 @@ namespace BT_Actions
 {
 	Elite::BehaviorState HouseFunctionality(Elite::Blackboard* pBlackboard, WorldState* pWorldState)
 	{
-		std::cout << "Going to a house\n";
+		//std::cout << "Going to a house\n";
 #pragma region GetVariables
 
 		AgentInfo pAgent{};
@@ -131,12 +131,6 @@ namespace BT_Actions
 #pragma endregion
 		//Always increase time since last loot of all houses
 
-		for (auto& house : pFoundHouses)
-		{
-			house.second += dt;
-		}	
-		pBlackboard->ChangeData("FoundHouses", pFoundHouses);
-
 		//House functionality
 		
 		const float maxTimeIdleInHouse{ 3.f };
@@ -151,7 +145,6 @@ namespace BT_Actions
 			if (agentInHouse && !entranceSet && !leavingHouse) //set entrance when entering house, also set the timer back to 0
 			{
 				pBlackboard->ChangeData("HouseEntrance", pAgent.Position);
-				//pBlackboard->ChangeData("EntranceSet", true);
 				pWorldState->ChangeWorldState().entranceSet = true;
 				movingToHouse = false;
 				pBlackboard->ChangeData("CurrentTimeInHouse", 0.f);
@@ -159,12 +152,6 @@ namespace BT_Actions
 
 			if (!agentInHouse) //go to the house
 			{
-				//if (target == houseEntrance && !movingToHouse) //Wander when outside the house after leaving
-				//{
-				//	pSteeringBehaviour = wander.CalculateSteering(dt, &pAgent);
-				//	pBlackboard->ChangeData("SteeringBehaviour", pSteeringBehaviour);
-				//	return Elite::BehaviorState::Success;
-				//}
 				seek.SetTarget(nextTargetPos);
 				pSteeringBehaviour = seek.CalculateSteering(dt, &pAgent);
 				pBlackboard->ChangeData("SteeringBehaviour", pSteeringBehaviour);
@@ -177,27 +164,58 @@ namespace BT_Actions
 
 		if (agentInHouse)
 		{
+			if(!entranceSet && !leavingHouse) //Entered house without setting entrance, can happen when going to collect item
+			{
+				const Elite::Vector2 tempTarget = pTargetHouse.Center + (pTargetHouse.Size * 2); //Set target outside house
+				const Elite::Vector2 tempNextTargetPos = pInterface->NavMesh_GetClosestPathPoint(tempTarget); //Get closest point till there, aka the door
+				pBlackboard->ChangeData("HouseEntrance", tempNextTargetPos);
+				pWorldState->ChangeWorldState().entranceSet = true;
+				movingToHouse = false;
+			}
 			if (currentTimeInHouse > maxTimeIdleInHouse) //Seek to exit house after a while
 			{
+				std::cout << "Trying to exit\n";
 				target = houseEntrance;
-				seek.SetTarget(nextTargetPos);
+				seek.SetTarget(target);
 				pSteeringBehaviour = seek.CalculateSteering(dt, &pAgent);
+				pBlackboard->ChangeData("Target", target);
 				pBlackboard->ChangeData("SteeringBehaviour", pSteeringBehaviour);
 				pWorldState->ChangeWorldState().entranceSet = false;
+				
 				pWorldState->ChangeWorldState().leavingHouse = true;
+
+				// Find the HouseInfo* that matches the raw value
+				auto it = std::find_if(pFoundHouses.begin(), pFoundHouses.end(),
+					[&pTargetHouse](const std::pair<HouseInfo*, float>& pair) 
+					{
+						return pair.first->Center.x == pTargetHouse.Center.x;
+					});
+
+				// Check if the HouseInfo* was found before updating
+				if (it != pFoundHouses.end())
+				{
+					// Update the float value of the pair
+					it->second = 0.0f;
+				}
+
+				pBlackboard->ChangeData("FoundHouses", pFoundHouses);
+				pBlackboard->ChangeData("TargetHouse", HouseInfo{});
 				return Elite::BehaviorState::Success;
 			}
 
 			if (!leavingHouse) //Look around the house
 			{
+				std::cout << "Trying to search house\n";
+				movingToHouse = false;
 				currentTimeInHouse += dt;
 				target = pTargetHouse.Center;
+				seek.SetTarget(target);
 				pSteeringBehaviour = seek.CalculateSteering(dt, &pAgent);
+				pBlackboard->ChangeData("Target", target);
 				pBlackboard->ChangeData("SteeringBehaviour", pSteeringBehaviour);
 				pBlackboard->ChangeData("CurrentTimeInHouse", currentTimeInHouse);
 				return Elite::BehaviorState::Success;
 			}
-
 		}
 
 		pSteeringBehaviour = wander.CalculateSteering(dt, &pAgent);
@@ -273,7 +291,7 @@ namespace BT_Actions
 
 	Elite::BehaviorState PickupFunctionality(Elite::Blackboard* pBlackboard, WorldState* pWorldState)
 	{
-		std::cout << "Picking something up\n";
+		//std::cout << "Picking something up\n";
 #pragma region GetVariables
 
 		AgentInfo pAgent{};

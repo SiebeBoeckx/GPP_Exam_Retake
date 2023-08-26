@@ -160,6 +160,7 @@ bool WorldState::ShouldMoveToHouse(Elite::Blackboard& blackboard)
 	HouseInfo targetHouse{};
 	Elite::Vector2 target{};
 	std::vector<HouseInfo*> pHousesInFOV{};
+	float dt{};
 
 	if (!blackboard.GetData("FoundHouses", pFoundHouses))
 	{
@@ -176,12 +177,23 @@ bool WorldState::ShouldMoveToHouse(Elite::Blackboard& blackboard)
 		return false;
 	}
 
+	if (!blackboard.GetData("dt", dt))
+	{
+		return false;
+	}
+
 	//if (!pBlackboard->GetData("MovingToHouse", movingToHouse))
 	//{
 	//	return false;
 	//}
 
 	//std::cout << pFoundHouses.size() << '\n';
+
+	for (auto& house : pFoundHouses)
+	{
+		house.second += dt;
+	}
+	blackboard.ChangeData("FoundHouses", pFoundHouses);
 
 	if (!m_WorldStates.movingToHouse && !m_WorldStates.agentInHouse)
 	{
