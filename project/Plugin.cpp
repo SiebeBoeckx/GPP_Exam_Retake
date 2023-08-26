@@ -24,8 +24,6 @@ void Plugin::Initialize(IBaseInterface* pInterface, PluginInfo& info)
 
 	m_pWorldState = new WorldState{};
 
-	m_pFlee->SetFleeRadius(m_pInterface->Agent_GetInfo().FOV_Range);
-
 	AgentInfo* m_pAgent = &(m_pInterface->Agent_GetInfo());
 	m_pBlackboard = CreateBlackboard(*m_pAgent);
 
@@ -47,15 +45,7 @@ void Plugin::Initialize(IBaseInterface* pInterface, PluginInfo& info)
 						new Elite::BehaviorConditionalBool(&m_pWorldState->ChangeWorldState().seeItem),
 						new Elite::BehaviorActionBool(BT_Actions::PickupFunctionality)
 					}),
-				}),
-				new Elite::BehaviorSelector(
-				{
-					//Add house if in FOV
-					new Elite::BehaviorSequence(
-					{
-						new Elite::BehaviorConditionalBool(&m_pWorldState->ChangeWorldState().newHouse),
-					}),
-					//Fallback to house movement/wander
+					//Move to houses
 					new Elite::BehaviorSequence(
 					{
 								new Elite::BehaviorConditionalBool(&m_pWorldState->ChangeWorldState().movingToHouse),
@@ -71,23 +61,12 @@ void Plugin::Initialize(IBaseInterface* pInterface, PluginInfo& info)
 void Plugin::DllInit()
 {
 	//Called when the plugin is loadedS
-
-	//Steering behaviours
-	m_pArrive = new Arrive();
-	m_pSeek = new Seek();
-	m_pWander = new Wander();
-	m_pFlee = new Flee();
 }
 
 //Called only once
 void Plugin::DllShutdown()
 {
 	//Called wheb the plugin gets unloaded
-	delete m_pArrive;
-	delete m_pSeek;
-	delete m_pWander;
-	delete m_pFlee;
-
 	delete m_pWorldState;
 }
 
@@ -103,8 +82,8 @@ void Plugin::InitGameDebugParams(GameDebugParams& params)
 	params.AutoGrabClosestItem = true; //A call to Item_Grab(...) returns the closest item that can be grabbed. (EntityInfo argument is ignored)
 	params.StartingDifficultyStage = 1;
 	params.InfiniteStamina = false;
-	params.SpawnDebugPistol = true;
-	params.SpawnDebugShotgun = true;
+	params.SpawnDebugPistol = false;
+	params.SpawnDebugShotgun = false;
 	params.SpawnPurgeZonesOnMiddleClick = true;
 	params.PrintDebugMessages = true;
 	params.ShowDebugItemNames = true;
@@ -182,7 +161,7 @@ SteeringPlugin_Output Plugin::UpdateSteering(float dt)
 	
 	//Use the Interface (IAssignmentInterface) to 'interface' with the AI_Framework
 	auto agentInfo = m_pInterface->Agent_GetInfo();
-
+	m_pBlackboard->ChangeData("Agent", agentInfo);
 
 	//Use the navmesh to calculate the next navmesh point
 	//auto nextTargetPos = m_pInterface->NavMesh_GetClosestPathPoint(checkpointLocation);
@@ -344,14 +323,20 @@ Elite::Blackboard* Plugin::CreateBlackboard(AgentInfo& a)
 	//Steering behaviours
 	pBlackboard->AddData("SteeringBehaviour", SteeringPlugin_Output{});
 	pBlackboard->AddData("Seek", Seek{});
+
 	pBlackboard->AddData("Flee", Flee{});
+	Flee tempFlee{};
+	pBlackboard->GetData("Flee", tempFlee);
+	tempFlee.SetFleeRadius(a.FOV_Range);
+	pBlackboard->ChangeData("Flee", tempFlee);
+
 	pBlackboard->AddData("Arrive", Arrive{});
 	pBlackboard->AddData("Wander", Wander{});
 
 	//House stuff
 	pBlackboard->AddData("HousesInFOV", std::vector<HouseInfo*>{});
 	pBlackboard->AddData("FoundHouses", std::vector<std::pair<HouseInfo*, float>>{});
-	pBlackboard->AddData("TargetHouse", std::pair<HouseInfo*, float>{});
+	pBlackboard->AddData("TargetHouse", HouseInfo{});
 	pBlackboard->AddData("HouseEntrance", Elite::Vector2{});
 	//pBlackboard->AddData("EntranceSet", bool{ false });
 	//pBlackboard->AddData("LeavingHouse", bool{ false });

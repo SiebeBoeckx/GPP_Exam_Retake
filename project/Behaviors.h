@@ -24,11 +24,12 @@ namespace BT_Actions
 {
 	Elite::BehaviorState HouseFunctionality(Elite::Blackboard* pBlackboard, WorldState* pWorldState)
 	{
+		std::cout << "Going to a house\n";
 #pragma region GetVariables
 
 		AgentInfo pAgent{};
 		std::vector<std::pair<HouseInfo*, float>> pFoundHouses{};
-		std::pair<HouseInfo*, float> pTargetHouse{};
+		HouseInfo pTargetHouse{};
 		Elite::Vector2 target{};
 		Elite::Vector2 houseEntrance{};
 		float dt{};
@@ -54,12 +55,7 @@ namespace BT_Actions
 			return Elite::BehaviorState::Failure;
 		}
 
-		if (!pBlackboard->GetData("TargetHouse", pTargetHouse) || &pTargetHouse == nullptr)
-		{
-			return Elite::BehaviorState::Failure;
-		}
-
-		if (pTargetHouse.first == nullptr)
+		if (!pBlackboard->GetData("TargetHouse", pTargetHouse))
 		{
 			return Elite::BehaviorState::Failure;
 		}
@@ -148,32 +144,35 @@ namespace BT_Actions
 		pInterface->Draw_Circle(nextTargetPos, 1, { 0,0,1 }, pInterface->NextDepthSlice());
 		pInterface->Draw_Circle(houseEntrance, 1, { 0,1,0 }, pInterface->NextDepthSlice());
 
-
-		if (agentInHouse && !entranceSet && !leavingHouse) //set entrance when entering house, also set the timer back to 0
+		if (movingToHouse)
 		{
-			pBlackboard->ChangeData("HouseEntrance", pAgent.Position);
-			//pBlackboard->ChangeData("EntranceSet", true);
-			pWorldState->ChangeWorldState().entranceSet = true;
-			pBlackboard->ChangeData("TargetHouse", std::pair<HouseInfo*, float>{pTargetHouse.first, 0.f});
-		}
+			target = pTargetHouse.Center;
 
-		if (!agentInHouse) //go to the house
-		{
-			if (target == houseEntrance) //Wander when outside the house after leaving
+			if (agentInHouse && !entranceSet && !leavingHouse) //set entrance when entering house, also set the timer back to 0
 			{
-				pSteeringBehaviour = wander.CalculateSteering(dt, &pAgent);
+				pBlackboard->ChangeData("HouseEntrance", pAgent.Position);
+				//pBlackboard->ChangeData("EntranceSet", true);
+				pWorldState->ChangeWorldState().entranceSet = true;
+				movingToHouse = false;
+				pBlackboard->ChangeData("CurrentTimeInHouse", 0.f);
+			}
+
+			if (!agentInHouse) //go to the house
+			{
+				//if (target == houseEntrance && !movingToHouse) //Wander when outside the house after leaving
+				//{
+				//	pSteeringBehaviour = wander.CalculateSteering(dt, &pAgent);
+				//	pBlackboard->ChangeData("SteeringBehaviour", pSteeringBehaviour);
+				//	return Elite::BehaviorState::Success;
+				//}
+				seek.SetTarget(nextTargetPos);
+				pSteeringBehaviour = seek.CalculateSteering(dt, &pAgent);
 				pBlackboard->ChangeData("SteeringBehaviour", pSteeringBehaviour);
+				//pBlackboard->ChangeData("LeavingHouse", false);
+				pWorldState->ChangeWorldState().leavingHouse = false;
 				return Elite::BehaviorState::Success;
 			}
-			seek.SetTarget(nextTargetPos);
-			pSteeringBehaviour = seek.CalculateSteering(dt, &pAgent);
-			pBlackboard->ChangeData("SteeringBehaviour", pSteeringBehaviour);
-			//pBlackboard->ChangeData("MovingToHouse", true);
-			pWorldState->ChangeWorldState().movingToHouse = true;
-			//pBlackboard->ChangeData("LeavingHouse", false);
-			pWorldState->ChangeWorldState().leavingHouse = false;
-			pBlackboard->ChangeData("CurrentTimeInHouse", 0.f);
-			return Elite::BehaviorState::Success;
+
 		}
 
 		if (agentInHouse)
@@ -184,23 +183,21 @@ namespace BT_Actions
 				seek.SetTarget(nextTargetPos);
 				pSteeringBehaviour = seek.CalculateSteering(dt, &pAgent);
 				pBlackboard->ChangeData("SteeringBehaviour", pSteeringBehaviour);
-				//pBlackboard->ChangeData("EntranceSet", false);
 				pWorldState->ChangeWorldState().entranceSet = false;
-				//pBlackboard->ChangeData("LeavingHouse", true);
 				pWorldState->ChangeWorldState().leavingHouse = true;
-				//pBlackboard->ChangeData("MovingToHouse", false);
-				pWorldState->ChangeWorldState().movingToHouse = false;
 				return Elite::BehaviorState::Success;
 			}
-			else if (!leavingHouse) //Look around the house
+
+			if (!leavingHouse) //Look around the house
 			{
 				currentTimeInHouse += dt;
-				target = pTargetHouse.first->Center;
+				target = pTargetHouse.Center;
 				pSteeringBehaviour = seek.CalculateSteering(dt, &pAgent);
 				pBlackboard->ChangeData("SteeringBehaviour", pSteeringBehaviour);
 				pBlackboard->ChangeData("CurrentTimeInHouse", currentTimeInHouse);
 				return Elite::BehaviorState::Success;
 			}
+
 		}
 
 		pSteeringBehaviour = wander.CalculateSteering(dt, &pAgent);
@@ -276,6 +273,7 @@ namespace BT_Actions
 
 	Elite::BehaviorState PickupFunctionality(Elite::Blackboard* pBlackboard, WorldState* pWorldState)
 	{
+		std::cout << "Picking something up\n";
 #pragma region GetVariables
 
 		AgentInfo pAgent{};
@@ -284,18 +282,19 @@ namespace BT_Actions
 		float dt{};
 		std::vector<EntityInfo*> pItemVec{};
 		IExamInterface* pInterface{};
+		Elite::Vector2 target{};
 
-		if (!pBlackboard->GetData("Agent", pAgent) || &pAgent == nullptr)
+		if (!pBlackboard->GetData("Agent", pAgent))
 		{
 			return Elite::BehaviorState::Failure;
 		}
 
-		if (!pBlackboard->GetData("SteeringBehaviour", pSteering) || &pSteering == nullptr)
+		if (!pBlackboard->GetData("SteeringBehaviour", pSteering))
 		{
 			return Elite::BehaviorState::Failure;
 		}
 
-		if (!pBlackboard->GetData("Arrive", pArrive) || &pArrive == nullptr)
+		if (!pBlackboard->GetData("Arrive", pArrive))
 		{
 			return Elite::BehaviorState::Failure;
 		}
@@ -305,7 +304,7 @@ namespace BT_Actions
 			return Elite::BehaviorState::Failure;
 		}
 
-		if (!pBlackboard->GetData("ItemsInFOV", pItemVec) || &pItemVec == nullptr)
+		if (!pBlackboard->GetData("ItemsInFOV", pItemVec))
 		{
 			return Elite::BehaviorState::Failure;
 		}
@@ -315,12 +314,20 @@ namespace BT_Actions
 			return Elite::BehaviorState::Failure;
 		}
 
+		if (!pBlackboard->GetData("Target", target))
+		{
+			return Elite::BehaviorState::Failure;
+		}
+
 #pragma endregion
 
 		auto item = pItemVec[0];
-		pArrive.SetTarget(item->Location);
+		target = item->Location;
+		pArrive.SetTarget(target);
 		pSteering = pArrive.CalculateSteering(dt, &pAgent);
+		pBlackboard->ChangeData("Target", target);
 		pBlackboard->ChangeData("SteeringBehaviour", pSteering);
+
 
 		if (pWorldState->GetWorldState().inPickupRange)
 		{
@@ -452,9 +459,11 @@ namespace BT_Actions
 				return Elite::BehaviorState::Failure;
 			}
 		}
+		return Elite::BehaviorState::Success;
 	}
 }
 
+//NOT USING THESE CONDITIONS ANYMORE, REPLACED BY GOAP
 namespace BT_Conditions
 {
 	bool NewHouseInFOV(Elite::Blackboard* pBlackboard)
@@ -500,46 +509,40 @@ namespace BT_Conditions
 	bool ShouldMoveToHouse(Elite::Blackboard* pBlackboard)
 	{
 		std::vector<std::pair<HouseInfo*, float>> pFoundHouses{};
-		std::pair<HouseInfo*, float> pTargetHouse{};
-		Elite::Vector2 target{};
+		HouseInfo pTargetHouse{};
+		//Elite::Vector2 target{};
 
-		bool movingToHouse{};
+		//bool movingToHouse{};
+		//bool agentInHouse{};
 
 		if (!pBlackboard->GetData("FoundHouses", pFoundHouses) || &pFoundHouses == nullptr)
 		{
 			return false;
 		}
 
-		if (!pBlackboard->GetData("TargetHouse", pTargetHouse) || &pTargetHouse == nullptr)
+		if (!pBlackboard->GetData("TargetHouse", pTargetHouse))
 		{
 			return false;
 		}
 
-		if (!pBlackboard->GetData("Target", target))
-		{
-			return false;
-		}
+		//if (!pBlackboard->GetData("Target", target))
+		//{
+		//	return false;
+		//}
 
 		//if (!pBlackboard->GetData("MovingToHouse", movingToHouse))
 		//{
 		//	return false;
 		//}
 
+		//if (!pBlackboard->GetData("MovingToHouse", agentInHouse))
+		//{
+		//	return false;
+		//}
+
 		//std::cout << pFoundHouses.size() << '\n';
 
-		for (const auto& house : pFoundHouses)
-		{
-			if (house.second >= 300.f) //5 min timer before going back to reloot a house
-			{
-				pBlackboard->ChangeData("TargetHouse", house);
-				pBlackboard->ChangeData("Target", house.first->Center);
-				return true;
-			}
-			else if (movingToHouse)
-			{
-				return true;
-			}
-		}
+		//not being used
 
 		return false;
 	}
@@ -547,7 +550,7 @@ namespace BT_Conditions
 	bool AgentInHouse(Elite::Blackboard* pBlackboard)
 	{
 		AgentInfo pAgent{};
-		std::pair<HouseInfo*, float> pTargetHouse{};
+		HouseInfo pTargetHouse{};
 		bool agentInHouse{};
 
 		if (!pBlackboard->GetData("Agent", pAgent) || &pAgent == nullptr)
@@ -555,7 +558,7 @@ namespace BT_Conditions
 			return false;
 		}
 
-		if (!pBlackboard->GetData("TargetHouse", pTargetHouse) || &pTargetHouse == nullptr)
+		if (!pBlackboard->GetData("TargetHouse", pTargetHouse))
 		{
 			return false;
 		}
@@ -567,17 +570,12 @@ namespace BT_Conditions
 
 		const Elite::Vector2 agentPos = pAgent.Position;
 
-		if (pTargetHouse.first == nullptr)
-		{
-			return false;
-		}
-
 		//House corners
-		const Elite::Vector2 bottomLeft = Elite::Vector2{ pTargetHouse.first->Center.x - pTargetHouse.first->Size.x / 2,
-														  pTargetHouse.first->Center.y - pTargetHouse.first->Size.y / 2 };
+		const Elite::Vector2 bottomLeft = Elite::Vector2{ pTargetHouse.Center.x - pTargetHouse.Size.x / 2,
+														  pTargetHouse.Center.y - pTargetHouse.Size.y / 2 };
 
-		const Elite::Vector2 topRight = Elite::Vector2{ pTargetHouse.first->Center.x + pTargetHouse.first->Size.x / 2,
-														pTargetHouse.first->Center.y + pTargetHouse.first->Size.y / 2 };
+		const Elite::Vector2 topRight = Elite::Vector2{ pTargetHouse.Center.x + pTargetHouse.Size.x / 2,
+														pTargetHouse.Center.y + pTargetHouse.Size.y / 2 };
 
 		if (agentPos.x > bottomLeft.x && agentPos.x < topRight.x)
 		{

@@ -15,15 +15,6 @@ WorldState::~WorldState()
 void WorldState::UpdateWorldState(Elite::Blackboard& blackboard) //Intensive function and performance overhead of GOAP
 {
 	WorldStates worldState{};
-	//reset worldState
-	worldState.seeEnemy = false;
-	worldState.seeItem = false;
-	worldState.seePurge = false;
-	worldState.lookingAt = false;
-	worldState.inPickupRange = false;
-	worldState.lowHP = false;
-	worldState.lowEnergy = false;
-	//==========================================
 
 	std::vector<EntityInfo*> enemies{};
 	std::vector<EntityInfo*> items{};
@@ -166,16 +157,16 @@ bool WorldState::NewHouseInFOV(Elite::Blackboard& blackboard)
 bool WorldState::ShouldMoveToHouse(Elite::Blackboard& blackboard)
 {
 	std::vector<std::pair<HouseInfo*, float>> pFoundHouses{};
-	std::pair<HouseInfo*, float> pTargetHouse{};
+	HouseInfo targetHouse{};
 	Elite::Vector2 target{};
 	std::vector<HouseInfo*> pHousesInFOV{};
 
-	if (!blackboard.GetData("FoundHouses", pFoundHouses) || &pFoundHouses == nullptr)
+	if (!blackboard.GetData("FoundHouses", pFoundHouses))
 	{
 		return false;
 	}
 
-	if (!blackboard.GetData("TargetHouse", pTargetHouse) || &pTargetHouse == nullptr)
+	if (!blackboard.GetData("TargetHouse", targetHouse))
 	{
 		return false;
 	}
@@ -192,18 +183,28 @@ bool WorldState::ShouldMoveToHouse(Elite::Blackboard& blackboard)
 
 	//std::cout << pFoundHouses.size() << '\n';
 
-	for (const auto& house : pFoundHouses)
+	if (!m_WorldStates.movingToHouse && !m_WorldStates.agentInHouse)
 	{
-		if (house.second >= 300.f) //5 min timer before going back to reloot a house
+		auto it = std::find_if(pFoundHouses.begin(), pFoundHouses.end(),
+			[](const std::pair<HouseInfo*, float>& pair)
+			{
+				return pair.second >= 100.f;
+			});
+
+		if (it != pFoundHouses.end())
 		{
-			blackboard.ChangeData("TargetHouse", house);
-			blackboard.ChangeData("Target", house.first->Center);
+			// Element with second value > 300 found
+			// 'it' points to the found element
+			targetHouse = *it->first;
+			blackboard.ChangeData("TargetHouse", targetHouse);
+			target = targetHouse.Center;
+			blackboard.ChangeData("Target", target);
 			return true;
 		}
-		else if (m_WorldStates.movingToHouse)
-		{
-			return true;
-		}
+	}
+	else if(m_WorldStates.movingToHouse)
+	{
+		return true;
 	}
 
 	return false;
@@ -212,31 +213,26 @@ bool WorldState::ShouldMoveToHouse(Elite::Blackboard& blackboard)
 bool WorldState::AgentInHouse(Elite::Blackboard& blackboard)
 {
 	AgentInfo pAgent{};
-	std::pair<HouseInfo*, float> pTargetHouse{};
+	HouseInfo targetHouse{};
 
 	if (!blackboard.GetData("Agent", pAgent) || &pAgent == nullptr)
 	{
 		return false;
 	}
 
-	if (!blackboard.GetData("TargetHouse", pTargetHouse) || &pTargetHouse == nullptr)
+	if (!blackboard.GetData("TargetHouse", targetHouse))
 	{
 		return false;
 	}
 
 	const Elite::Vector2 agentPos = pAgent.Position;
 
-	if (pTargetHouse.first == nullptr)
-	{
-		return false;
-	}
-
 	//House corners
-	const Elite::Vector2 bottomLeft = Elite::Vector2{ pTargetHouse.first->Center.x - pTargetHouse.first->Size.x / 2,
-													  pTargetHouse.first->Center.y - pTargetHouse.first->Size.y / 2 };
+	const Elite::Vector2 bottomLeft = Elite::Vector2{ targetHouse.Center.x - targetHouse.Size.x / 2,
+													  targetHouse.Center.y - targetHouse.Size.y / 2 };
 
-	const Elite::Vector2 topRight = Elite::Vector2{ pTargetHouse.first->Center.x + pTargetHouse.first->Size.x / 2,
-													pTargetHouse.first->Center.y + pTargetHouse.first->Size.y / 2 };
+	const Elite::Vector2 topRight = Elite::Vector2{ targetHouse.Center.x + targetHouse.Size.x / 2,
+													targetHouse.Center.y + targetHouse.Size.y / 2 };
 
 	if (agentPos.x > bottomLeft.x && agentPos.x < topRight.x)
 	{

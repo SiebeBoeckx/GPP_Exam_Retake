@@ -46,10 +46,6 @@ private:
 	Elite::Blackboard* m_pBlackboard{};
 
 	Elite::BehaviorTree* m_pBehaviourTree{};
-	Arrive* m_pArrive{ nullptr };
-	Seek* m_pSeek{};
-	Wander* m_pWander{};
-	Flee* m_pFlee{};
 
 	//GOAP
 	WorldState* m_pWorldState{};

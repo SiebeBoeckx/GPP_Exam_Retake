@@ -15,7 +15,7 @@ struct WorldStates
 	bool lowHP{};
 	bool lowEnergy{};
 
-	//House bools
+	//House bools, don't reset every update
 	bool entranceSet{};
 	bool leavingHouse{};
 	bool movingToHouse{};

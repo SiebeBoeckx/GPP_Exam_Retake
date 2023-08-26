@@ -41,8 +41,8 @@ public:
 	void SetTargetRadius(float distance) { m_StopRadius = distance; };
 
 private:
-	float m_SlowRadius{ 2.f };
-	float m_StopRadius{ 2.f };
+	float m_SlowRadius{ 0.5f };
+	float m_StopRadius{ 0.2f };
 };
 
 class Seek : public ISteeringBehavior
