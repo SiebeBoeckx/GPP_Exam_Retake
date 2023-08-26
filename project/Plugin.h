@@ -1,9 +1,15 @@
 #pragma once
+#include "EBehaviorTree.h"
 #include "IExamPlugin.h"
 #include "Exam_HelperStructs.h"
 
+class Arrive;
+class Seek;
+class Wander;
+class Flee;
 class IBaseInterface;
 class IExamInterface;
+class WorldState;
 
 class Plugin :public IExamPlugin
 {
@@ -36,19 +42,18 @@ private:
 
 	UINT m_InventorySlot = 0;
 
-	//Set up world states for GOAP, just a bunch of booleans
-	struct WorldState
-	{
-		bool seeEnemy{};
-		bool seeItem{};
-		bool seePurge{};
-		bool lookingAt{};
-		bool inPickupRange{};
-		bool lowHP{};
-		bool lowEnergy{};
-	};
+	Elite::Blackboard* Plugin::CreateBlackboard(AgentInfo& a);
+	Elite::Blackboard* m_pBlackboard{};
 
-	void UpdateWorldState(WorldState& worldState, const AgentInfo& agentInfo, const std::vector<HouseInfo>& houseInfos, const std::vector<EntityInfo>& entityInfos);
+	Elite::BehaviorTree* m_pBehaviourTree{};
+	Arrive* m_pArrive{ nullptr };
+	Seek* m_pSeek{};
+	Wander* m_pWander{};
+	Flee* m_pFlee{};
+
+	//GOAP
+	WorldState* m_pWorldState{};
+	WorldStates m_States{};
 };
 
 //ENTRY

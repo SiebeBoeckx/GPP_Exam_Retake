@@ -55,26 +55,26 @@ public:
 	SteeringPlugin_Output CalculateSteering(float deltaT, AgentInfo* pAgent) override;
 };
 
-//class Wander : public Seek
-//{
-//public:
-//	Wander() = default;
-//	virtual ~Wander() = default;
-//
-//	void SetWanderOffset(float offset) { m_OffsetDistance = offset; }
-//	void SetWanderRadius(float radius) { m_Radius = radius; }
-//	void SetMaxAngleChange(float rad) { m_MaxAngleChange = rad; }
-//
-//	//Arrive Behaviour
-//	SteeringPlugin_Output CalculateSteering(float deltaT, AgentInfo* pAgent) override;
-//
-//	float m_OffsetDistance{ 10.0f }; // Offset (agent direction)
-//	float m_Radius{ 4.0f }; // Wander radius
-//	float m_MaxAngleChange{ Elite::ToRadians(30) }; // Max wander angle change per frame
-//	float m_WanderAngle{}; //Internal
-//	//const float m_TimeBetweemDirectionChange{0.5f};
-//	//float m_CurrentTime{0};
-//};
+class Wander : public Seek
+{
+public:
+	Wander() = default;
+	virtual ~Wander() = default;
+
+	void SetWanderOffset(float offset) { m_OffsetDistance = offset; }
+	void SetWanderRadius(float radius) { m_Radius = radius; }
+	void SetMaxAngleChange(float rad) { m_MaxAngleChange = rad; }
+
+	//Arrive Behaviour
+	SteeringPlugin_Output CalculateSteering(float deltaT, AgentInfo* pAgent) override;
+
+	float m_OffsetDistance{ 10.0f }; // Offset (agent direction)
+	float m_Radius{ 4.0f }; // Wander radius
+	float m_MaxAngleChange{ Elite::ToRadians(30) }; // Max wander angle change per frame
+	float m_WanderAngle{}; //Internal
+	//const float m_TimeBetweemDirectionChange{0.5f};
+	//float m_CurrentTime{0};
+};
 
 class Flee : public ISteeringBehavior
 {

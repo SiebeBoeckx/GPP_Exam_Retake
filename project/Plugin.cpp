@@ -1,6 +1,10 @@
 #include "stdafx.h"
 #include "Plugin.h"
+
+#include "Behaviors.h"
 #include "IExamInterface.h"
+#include "SteeringBehaviours.h"
+#include "WorldState.h"
 
 using namespace std;
 
@@ -13,22 +17,78 @@ void Plugin::Initialize(IBaseInterface* pInterface, PluginInfo& info)
 
 	//Bit information about the plugin
 	//Please fill this in!!
-	info.BotName = "MinionExam";
-	info.Student_FirstName = "Foo";
-	info.Student_LastName = "Bar";
-	info.Student_Class = "2DAEx";
+	info.BotName = "Sifitus";
+	info.Student_FirstName = "Siebe";
+	info.Student_LastName = "Boeckx";
+	info.Student_Class = "2DAE07";
+
+	m_pWorldState = new WorldState{};
+
+	m_pFlee->SetFleeRadius(m_pInterface->Agent_GetInfo().FOV_Range);
+
+	AgentInfo* m_pAgent = &(m_pInterface->Agent_GetInfo());
+	m_pBlackboard = CreateBlackboard(*m_pAgent);
+
+	m_pBehaviourTree = new Elite::BehaviorTree(m_pBlackboard,
+		new Elite::BehaviorSelector(
+			{
+				new Elite::BehaviorSelector({
+				//Flee from enemies
+				new Elite::BehaviorSequence(
+					{
+						new Elite::BehaviorConditionalBool(&m_pWorldState->ChangeWorldState().seeEnemy),
+						new Elite::BehaviorAction(BT_Actions::FleeEnemy),
+						new Elite::BehaviorConditionalBool(&m_pWorldState->ChangeWorldState().lookingAt),
+						new Elite::BehaviorAction(BT_Actions::UsePistol)
+					}),
+					//Pickup items
+					new Elite::BehaviorSequence(
+					{
+						new Elite::BehaviorConditionalBool(&m_pWorldState->ChangeWorldState().seeItem),
+						new Elite::BehaviorActionBool(BT_Actions::PickupFunctionality)
+					}),
+				}),
+				new Elite::BehaviorSelector(
+				{
+					//Add house if in FOV
+					new Elite::BehaviorSequence(
+					{
+						new Elite::BehaviorConditionalBool(&m_pWorldState->ChangeWorldState().newHouse),
+					}),
+					//Fallback to house movement/wander
+					new Elite::BehaviorSequence(
+					{
+								new Elite::BehaviorConditionalBool(&m_pWorldState->ChangeWorldState().movingToHouse),
+								new Elite::BehaviorActionBool(BT_Actions::HouseFunctionality),
+								new Elite::BehaviorConditionalBool(&m_pWorldState->ChangeWorldState().agentInHouse)
+								})
+				})
+			})
+	, m_pWorldState);
 }
 
 //Called only once
 void Plugin::DllInit()
 {
-	//Called when the plugin is loaded
+	//Called when the plugin is loadedS
+
+	//Steering behaviours
+	m_pArrive = new Arrive();
+	m_pSeek = new Seek();
+	m_pWander = new Wander();
+	m_pFlee = new Flee();
 }
 
 //Called only once
 void Plugin::DllShutdown()
 {
 	//Called wheb the plugin gets unloaded
+	delete m_pArrive;
+	delete m_pSeek;
+	delete m_pWander;
+	delete m_pFlee;
+
+	delete m_pWorldState;
 }
 
 //Called only once, during initialization
@@ -118,7 +178,7 @@ void Plugin::Update(float dt)
 //This function calculates the new SteeringOutput, called once per frame
 SteeringPlugin_Output Plugin::UpdateSteering(float dt)
 {
-	auto steering = SteeringPlugin_Output();
+	m_pBlackboard->ChangeData("dt", dt);
 	
 	//Use the Interface (IAssignmentInterface) to 'interface' with the AI_Framework
 	auto agentInfo = m_pInterface->Agent_GetInfo();
@@ -133,68 +193,98 @@ SteeringPlugin_Output Plugin::UpdateSteering(float dt)
 	auto vHousesInFOV = GetHousesInFOV();//uses m_pInterface->Fov_GetHouseByIndex(...)
 	auto vEntitiesInFOV = GetEntitiesInFOV(); //uses m_pInterface->Fov_GetEntityByIndex(...)
 
+	std::vector<HouseInfo*> housesInFOV{};
+	std::vector<EntityInfo*> enemiesInFOV{};
+	std::vector<EntityInfo*> itemsInFOV{};
+	std::vector<EntityInfo*> purgesInFOV{};
+
+	for (auto house : vHousesInFOV)
+	{
+		housesInFOV.push_back(&house);
+	}
+	m_pBlackboard->ChangeData("HousesInFOV", housesInFOV);
+
 	for (auto& e : vEntitiesInFOV)
 	{
 		if (e.Type == eEntityType::PURGEZONE)
 		{
 			PurgeZoneInfo zoneInfo;
 			m_pInterface->PurgeZone_GetInfo(e, zoneInfo);
+			purgesInFOV.push_back(&e);
 			//std::cout << "Purge Zone in FOV:" << e.Location.x << ", "<< e.Location.y << "---Radius: "<< zoneInfo.Radius << std::endl;
 		}
+		else if (e.Type == eEntityType::ENEMY)
+		{
+			enemiesInFOV.push_back(&e);
+		}
+		else if (e.Type == eEntityType::ITEM)
+		{
+			itemsInFOV.push_back(&e);
+		}
 	}
+
+	m_pBlackboard->ChangeData("EnemiesInFOV", enemiesInFOV);
+	m_pBlackboard->ChangeData("ItemsInFOV", itemsInFOV);
+	m_pBlackboard->ChangeData("PurgesInFOV", purgesInFOV);
 
 	//INVENTORY USAGE DEMO
 	//********************
 
-	if (m_GrabItem)
-	{
-		ItemInfo item;
-		//Item_Grab > When DebugParams.AutoGrabClosestItem is TRUE, the Item_Grab function returns the closest item in range
-		//Keep in mind that DebugParams are only used for debugging purposes, by default this flag is FALSE
-		//Otherwise, use GetEntitiesInFOV() to retrieve a vector of all entities in the FOV (EntityInfo)
-		//Item_Grab gives you the ItemInfo back, based on the passed EntityHash (retrieved by GetEntitiesInFOV)
-		if (m_pInterface->Item_Grab({}, item))
-		{
-			//Once grabbed, you can add it to a specific inventory slot
-			//Slot must be empty
-			m_pInterface->Inventory_AddItem(m_InventorySlot, item);
-		}
-	}
-
-	if (m_UseItem)
-	{
-		//Use an item (make sure there is an item at the given inventory slot)
-		m_pInterface->Inventory_UseItem(m_InventorySlot);
-	}
-
-	if (m_RemoveItem)
-	{
-		//Remove an item from a inventory slot
-		m_pInterface->Inventory_RemoveItem(m_InventorySlot);
-	}
-
-	//Simple Seek Behaviour (towards Target)
-	steering.LinearVelocity = nextTargetPos - agentInfo.Position; //Desired Velocity
-	steering.LinearVelocity.Normalize(); //Normalize Desired Velocity
-	steering.LinearVelocity *= agentInfo.MaxLinearSpeed; //Rescale to Max Speed
-
-	if (Distance(nextTargetPos, agentInfo.Position) < 2.f)
-	{
-		steering.LinearVelocity = Elite::ZeroVector2;
-	}
-
-	//steering.AngularVelocity = m_AngSpeed; //Rotate your character to inspect the world while walking
-	steering.AutoOrient = true; //Setting AutoOrient to TRue overrides the AngularVelocity
-
-	steering.RunMode = m_CanRun; //If RunMode is True > MaxLinSpd is increased for a limited time (till your stamina runs out)
-
-	//SteeringPlugin_Output is works the exact same way a SteeringBehaviour output
+	//if (m_GrabItem)
+	//{
+	//	ItemInfo item;
+	//	//Item_Grab > When DebugParams.AutoGrabClosestItem is TRUE, the Item_Grab function returns the closest item in range
+	//	//Keep in mind that DebugParams are only used for debugging purposes, by default this flag is FALSE
+	//	//Otherwise, use GetEntitiesInFOV() to retrieve a vector of all entities in the FOV (EntityInfo)
+	//	//Item_Grab gives you the ItemInfo back, based on the passed EntityHash (retrieved by GetEntitiesInFOV)
+	//	if (m_pInterface->Item_Grab({}, item))
+	//	{
+	//		//Once grabbed, you can add it to a specific inventory slot
+	//		//Slot must be empty
+	//		m_pInterface->Inventory_AddItem(m_InventorySlot, item);
+	//	}
+	//}
+	//
+	//if (m_UseItem)
+	//{
+	//	//Use an item (make sure there is an item at the given inventory slot)
+	//	m_pInterface->Inventory_UseItem(m_InventorySlot);
+	//}
+	//
+	//if (m_RemoveItem)
+	//{
+	//	//Remove an item from a inventory slot
+	//	m_pInterface->Inventory_RemoveItem(m_InventorySlot);
+	//}
+	//
+	////Simple Seek Behaviour (towards Target)
+	//steering.LinearVelocity = nextTargetPos - agentInfo.Position; //Desired Velocity
+	//steering.LinearVelocity.Normalize(); //Normalize Desired Velocity
+	//steering.LinearVelocity *= agentInfo.MaxLinearSpeed; //Rescale to Max Speed
+	//
+	//if (Distance(nextTargetPos, agentInfo.Position) < 2.f)
+	//{
+	//	steering.LinearVelocity = Elite::ZeroVector2;
+	//}
+	//
+	////steering.AngularVelocity = m_AngSpeed; //Rotate your character to inspect the world while walking
+	//steering.AutoOrient = true; //Setting AutoOrient to TRue overrides the AngularVelocity
+	//
+	//steering.RunMode = m_CanRun; //If RunMode is True > MaxLinSpd is increased for a limited time (till your stamina runs out)
+	//
+	////SteeringPlugin_Output is works the exact same way a SteeringBehaviour output
 
 //@End (Demo Purposes)
 	m_GrabItem = false; //Reset State
 	m_UseItem = false;
 	m_RemoveItem = false;
 
+	m_pWorldState->UpdateWorldState(*m_pBlackboard);
+
+	m_pBehaviourTree->Update(dt);
+
+	SteeringPlugin_Output steering{};
+	m_pBlackboard->GetData("SteeringBehaviour", steering);
 	return steering;
 }
 
@@ -243,83 +333,37 @@ vector<EntityInfo> Plugin::GetEntitiesInFOV() const
 	return vEntitiesInFOV;
 }
 
-void Plugin::UpdateWorldState(WorldState& worldState, const AgentInfo& agentInfo, const vector<HouseInfo>& houseInfos, const vector<EntityInfo>& entityInfos) //Intensive function and performance overhead of GOAP
+Elite::Blackboard* Plugin::CreateBlackboard(AgentInfo& a)
 {
-	//reset worldState
-	worldState.seeEnemy = false;
-	worldState.seeItem = false;
-	worldState.seePurge = false;
-	worldState.lookingAt = false;
-	worldState.inPickupRange = false;
-	worldState.lowHP = false;
-	worldState.lowEnergy = false;
-	//==========================================
+	Elite::Blackboard* pBlackboard = new Elite::Blackboard();
+	pBlackboard->AddData("Agent", a);
+	pBlackboard->AddData("Target", Elite::Vector2{});
+	pBlackboard->AddData("dt", 0.0f);
+	pBlackboard->AddData("Interface", static_cast<IExamInterface*>(m_pInterface));
 
-	vector<const EntityInfo*> enemies{};
-	vector<const EntityInfo*> items{};
+	//Steering behaviours
+	pBlackboard->AddData("SteeringBehaviour", SteeringPlugin_Output{});
+	pBlackboard->AddData("Seek", Seek{});
+	pBlackboard->AddData("Flee", Flee{});
+	pBlackboard->AddData("Arrive", Arrive{});
+	pBlackboard->AddData("Wander", Wander{});
 
-#pragma region FOV entity checks
-	for (auto& e : entityInfos)
-	{
-		switch (e.Type)
-		{
-		case eEntityType::ENEMY:
-			worldState.seeEnemy = true;
-			enemies.push_back(&e);
-			break;
-		case eEntityType::ITEM:
-			worldState.seeItem = true;
-			items.push_back(&e);
-			break;
-		case eEntityType::PURGEZONE:
-			worldState.seePurge = true;
-			break;
-		default:
-			std::cout << "Check visible entity switch, something's wrong there\n";
-		}
-	}
-#pragma endregion
+	//House stuff
+	pBlackboard->AddData("HousesInFOV", std::vector<HouseInfo*>{});
+	pBlackboard->AddData("FoundHouses", std::vector<std::pair<HouseInfo*, float>>{});
+	pBlackboard->AddData("TargetHouse", std::pair<HouseInfo*, float>{});
+	pBlackboard->AddData("HouseEntrance", Elite::Vector2{});
+	//pBlackboard->AddData("EntranceSet", bool{ false });
+	//pBlackboard->AddData("LeavingHouse", bool{ false });
+	//pBlackboard->AddData("MovingToHouse", bool{ false });
+	pBlackboard->AddData("CurrentTimeInHouse", float{});
+	//pBlackboard->AddData("AgentInHouse", bool{ false });
 
-#pragma region LookAt checks and range check for items
-	if (!enemies.empty())
-	{
-		EntityInfo target = *enemies[0];
-		//LookAt
-		const Elite::Vector2 desiredVector = Elite::Vector2(target.Location - agentInfo.Position);
-		const Elite::Vector2 lookVector{ std::cosf(agentInfo.Orientation), std::sinf(agentInfo.Orientation) };
+	//Item and enemy stuff (entities)
+	pBlackboard->AddData("EnemiesInFOV", std::vector<EntityInfo*>{});
+	pBlackboard->AddData("TargetEnemy", EntityInfo{});
+	pBlackboard->AddData("ItemsInFOV", std::vector<EntityInfo*>{});
+	pBlackboard->AddData("PurgesInFOV", std::vector<EntityInfo*>{});
 
-		if (fabsf(Elite::AngleBetween(lookVector, desiredVector)) < 0.1f)
-		{
-			worldState.lookingAt = true;
-		}
-	}
-	else if (!items.empty())
-	{
-		EntityInfo target = *items[0];
-		//LookAt
-		const Elite::Vector2 desiredVector = Elite::Vector2(target.Location - agentInfo.Position);
-		const Elite::Vector2 lookVector{ std::cosf(agentInfo.Orientation), std::sinf(agentInfo.Orientation) };
-
-		if (fabsf(Elite::AngleBetween(lookVector, desiredVector)) < 0.1f)
-		{
-			worldState.lookingAt = true;
-		}
-
-		if (target.Location.DistanceSquared(agentInfo.Position) <= agentInfo.GrabRange * agentInfo.GrabRange)
-		{
-			worldState.inPickupRange = true;
-		}
-	}
-#pragma endregion
-
-#pragma region Agent checks
-	if(agentInfo.Health <= 3.f)
-	{
-		worldState.lowHP = true;
-	}
-	if(agentInfo.Energy <= 3.f)
-	{
-		worldState.lowEnergy = true;
-	}
-#pragma endregion
+	return pBlackboard;
 }

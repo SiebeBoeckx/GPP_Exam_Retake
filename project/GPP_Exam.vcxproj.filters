@@ -5,6 +5,7 @@
     <ClCompile Include="stdafx.cpp" />
     <ClCompile Include="EBehaviorTree.cpp" />
     <ClCompile Include="SteeringBehaviours.cpp" />
+    <ClCompile Include="WorldState.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Plugin.h" />
@@ -14,5 +15,6 @@
     <ClInclude Include="EBehaviorTree.h" />
     <ClInclude Include="SteeringBehaviours.h" />
     <ClInclude Include="Behaviors.h" />
+    <ClInclude Include="WorldState.h" />
   </ItemGroup>
 </Project>

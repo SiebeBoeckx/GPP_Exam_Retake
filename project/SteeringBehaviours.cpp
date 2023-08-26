@@ -65,27 +65,27 @@ SteeringPlugin_Output Seek::CalculateSteering(float deltaT, AgentInfo* pAgent)
 	return steering;
 }
 
-//SteeringPlugin_Output Wander::CalculateSteering(float deltaT, AgentInfo* pAgent)
-//{
-//	SteeringPlugin_Output steering = {};
-//	b2CircleShape wanderCircle{};
-//	//const Elite::Vector2 directionVector{ pAgent->GetPosition() - m_Target.Position}; //desired direction
-//	Elite::Vector2 circleCenter = pAgent->LinearVelocity.GetNormalized() * m_OffsetDistance + pAgent->Position; //circle center
-//	wanderCircle.m_p.Set(circleCenter.x, circleCenter.y);
-//	wanderCircle.m_radius = m_Radius;
-//	
-//	const float addedAngle{ Elite::randomFloat(-m_MaxAngleChange, m_MaxAngleChange) }; //random angle withing maxAngle interval
-//	
-//	m_WanderAngle += addedAngle; //add direction change
-//	//std::cout << m_WanderAngle << '\n';
-//	
-//	const Elite::Vector2 targetPoint{ circleCenter + Elite::Vector2{cosf(m_WanderAngle), sinf(m_WanderAngle)}.GetNormalized() * m_Radius }; //calculate target point
-//	
-//	m_Target.Location = targetPoint;
-//	steering = Seek::CalculateSteering(deltaT, pAgent);
-//	
-//	return steering;
-//}
+SteeringPlugin_Output Wander::CalculateSteering(float deltaT, AgentInfo* pAgent)
+{
+	SteeringPlugin_Output steering = {};
+	b2CircleShape wanderCircle{};
+	//const Elite::Vector2 directionVector{ pAgent->GetPosition() - m_Target.Position}; //desired direction
+	Elite::Vector2 circleCenter = pAgent->LinearVelocity.GetNormalized() * m_OffsetDistance + pAgent->Position; //circle center
+	wanderCircle.m_p.Set(circleCenter.x, circleCenter.y);
+	wanderCircle.m_radius = m_Radius;
+	
+	const float addedAngle{ Elite::randomFloat(-m_MaxAngleChange, m_MaxAngleChange) }; //random angle withing maxAngle interval
+	
+	m_WanderAngle += addedAngle; //add direction change
+	//std::cout << m_WanderAngle << '\n';
+	
+	const Elite::Vector2 targetPoint{ circleCenter + Elite::Vector2{cosf(m_WanderAngle), sinf(m_WanderAngle)}.GetNormalized() * m_Radius }; //calculate target point
+	
+	m_Target.Location = targetPoint;
+	steering = Seek::CalculateSteering(deltaT, pAgent);
+	
+	return steering;
+}
 
 SteeringPlugin_Output Flee::CalculateSteering(float deltaT, AgentInfo* pAgent)
 {

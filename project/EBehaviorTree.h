@@ -10,6 +10,9 @@
 //--- Includes ---
 #include "EBlackboard.h"
 #include "EDecisionMaking.h"
+#include "WorldState.h"
+
+class WorldState;
 
 namespace Elite
 {
@@ -31,7 +34,7 @@ namespace Elite
 	public:
 		IBehavior() = default;
 		virtual ~IBehavior() = default;
-		virtual BehaviorState Execute(Blackboard* pBlackBoard) = 0;
+		virtual BehaviorState Execute(Blackboard* pBlackBoard, WorldState* pWorldState) = 0;
 
 	protected:
 		BehaviorState m_CurrentState = BehaviorState::Failure;
@@ -54,7 +57,7 @@ namespace Elite
 			m_ChildBehaviors.clear();
 		}
 
-		virtual BehaviorState Execute(Blackboard* pBlackBoard) override = 0;
+		virtual BehaviorState Execute(Blackboard* pBlackBoard, WorldState* pWorldState) override = 0;
 
 	protected:
 		std::vector<IBehavior*> m_ChildBehaviors = {};
@@ -68,7 +71,7 @@ namespace Elite
 			BehaviorComposite(childBehaviors) {}
 		virtual ~BehaviorSelector() = default;
 
-		virtual BehaviorState Execute(Blackboard* pBlackBoard) override;
+		virtual BehaviorState Execute(Blackboard* pBlackBoard, WorldState* pWorldState) override;
 	};
 
 	//--- SEQUENCE ---
@@ -79,7 +82,7 @@ namespace Elite
 			BehaviorComposite(childBehaviors) {}
 		virtual ~BehaviorSequence() = default;
 
-		virtual BehaviorState Execute(Blackboard* pBlackBoard) override;
+		virtual BehaviorState Execute(Blackboard* pBlackBoard, WorldState* pWorldState) override;
 	};
 
 	//--- PARTIAL SEQUENCE ---
@@ -90,7 +93,7 @@ namespace Elite
 			: BehaviorSequence(childBehaviors) {}
 		virtual ~BehaviorPartialSequence() = default;
 
-		virtual BehaviorState Execute(Blackboard* pBlackBoard) override;
+		virtual BehaviorState Execute(Blackboard* pBlackBoard, WorldState* pWorldState) override;
 
 	private:
 		unsigned int m_CurrentBehaviorIndex = 0;
@@ -104,10 +107,20 @@ namespace Elite
 	{
 	public:
 		explicit BehaviorConditional(std::function<bool(Blackboard*)> fp) : m_fpConditional(fp) {}
-		virtual BehaviorState Execute(Blackboard* pBlackBoard) override;
+		virtual BehaviorState Execute(Blackboard* pBlackBoard, WorldState* pWorldState) override;
 
 	private:
 		std::function<bool(Blackboard*)> m_fpConditional = nullptr;
+	};
+
+	class BehaviorConditionalBool : public IBehavior
+	{
+	public:
+		explicit BehaviorConditionalBool(bool* pState) : m_pState(pState) {}
+		virtual BehaviorState Execute(Blackboard* pBlackBoard, WorldState* pWorldState) override;
+
+	private:
+		bool* m_pState{};
 	};
 
 	//-----------------------------------------------------------------
@@ -117,10 +130,20 @@ namespace Elite
 	{
 	public:
 		explicit BehaviorAction(std::function<BehaviorState(Blackboard*)> fp) : m_fpAction(fp) {}
-		virtual BehaviorState Execute(Blackboard* pBlackBoard) override;
+		virtual BehaviorState Execute(Blackboard* pBlackBoard, WorldState* pWorldState) override;
 
 	private:
 		std::function<BehaviorState(Blackboard*)> m_fpAction = nullptr;
+	};
+
+	class BehaviorActionBool : public IBehavior
+	{
+	public:
+		explicit BehaviorActionBool(std::function<BehaviorState(Blackboard*, WorldState*)> fp) : m_fpAction(fp) {}
+		virtual BehaviorState Execute(Blackboard* pBlackBoard, WorldState* pWorldState) override;
+
+	private:
+		std::function<BehaviorState(Blackboard*, WorldState*)> m_fpAction = nullptr;
 	};
 
 	//-----------------------------------------------------------------
@@ -129,8 +152,8 @@ namespace Elite
 	class BehaviorTree final : public Elite::IDecisionMaking
 	{
 	public:
-		explicit BehaviorTree(Blackboard* pBlackBoard, IBehavior* pRootBehavior)
-			: m_pBlackBoard(pBlackBoard), m_pRootBehavior(pRootBehavior) {};
+		explicit BehaviorTree(Blackboard* pBlackBoard, IBehavior* pRootBehavior, WorldState* pWorldState)
+			: m_pBlackBoard(pBlackBoard), m_pRootBehavior(pRootBehavior), m_pWorldState(pWorldState) {};
 		~BehaviorTree()
 		{
 			SAFE_DELETE(m_pRootBehavior);
@@ -145,7 +168,7 @@ namespace Elite
 				return;
 			}
 				
-			m_CurrentState = m_pRootBehavior->Execute(m_pBlackBoard);
+			m_CurrentState = m_pRootBehavior->Execute(m_pBlackBoard, m_pWorldState);
 		}
 		Blackboard* GetBlackboard() const
 		{ return m_pBlackBoard;	}
@@ -154,6 +177,7 @@ namespace Elite
 		BehaviorState m_CurrentState = BehaviorState::Failure;
 		Blackboard* m_pBlackBoard = nullptr;
 		IBehavior* m_pRootBehavior = nullptr;
+		WorldState* m_pWorldState{};
 	};
 }
 #endif

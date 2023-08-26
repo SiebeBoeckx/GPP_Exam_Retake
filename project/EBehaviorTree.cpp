@@ -8,14 +8,14 @@ using namespace Elite;
 //-----------------------------------------------------------------
 #pragma region COMPOSITES
 //SELECTOR
-BehaviorState BehaviorSelector::Execute(Blackboard* pBlackBoard)
+BehaviorState BehaviorSelector::Execute(Blackboard* pBlackBoard, WorldState* pWorldState)
 {
 	//TODO: Fill in this code
 	// Loop over all children in m_ChildBehaviors
 	for (auto& child : m_ChildBehaviors)
 	{
 		////Every Child: Execute and store the result in m_CurrentState
-		m_CurrentState = child->Execute(pBlackBoard);
+		m_CurrentState = child->Execute(pBlackBoard, pWorldState);
 		//
 		////Check the currentstate and apply the selector Logic:
 		////if a child returns Success:
@@ -55,7 +55,7 @@ BehaviorState BehaviorSelector::Execute(Blackboard* pBlackBoard)
 	return m_CurrentState;
 }
 //SEQUENCE
-BehaviorState BehaviorSequence::Execute(Blackboard* pBlackBoard)
+BehaviorState BehaviorSequence::Execute(Blackboard* pBlackBoard, WorldState* pWorldState)
 {
 	//TODO: FIll in this code
 	//Loop over all children in m_ChildBehaviors
@@ -63,7 +63,7 @@ BehaviorState BehaviorSequence::Execute(Blackboard* pBlackBoard)
 	{
 
 		//Every Child: Execute and store the result in m_CurrentState
-		m_CurrentState = child->Execute(pBlackBoard);
+		m_CurrentState = child->Execute(pBlackBoard, pWorldState);
 
 		//Check the currentstate and apply the sequence Logic:
 		//if a child returns Failed:
@@ -90,11 +90,11 @@ BehaviorState BehaviorSequence::Execute(Blackboard* pBlackBoard)
 	return m_CurrentState;
 }
 //PARTIAL SEQUENCE
-BehaviorState BehaviorPartialSequence::Execute(Blackboard* pBlackBoard)
+BehaviorState BehaviorPartialSequence::Execute(Blackboard* pBlackBoard, WorldState* pWorldState)
 {
 	while (m_CurrentBehaviorIndex < m_ChildBehaviors.size())
 	{
-		m_CurrentState = m_ChildBehaviors[m_CurrentBehaviorIndex]->Execute(pBlackBoard);
+		m_CurrentState = m_ChildBehaviors[m_CurrentBehaviorIndex]->Execute(pBlackBoard, pWorldState);
 		switch (m_CurrentState)
 		{
 		case BehaviorState::Failure:
@@ -117,7 +117,7 @@ BehaviorState BehaviorPartialSequence::Execute(Blackboard* pBlackBoard)
 //-----------------------------------------------------------------
 // BEHAVIOR TREE CONDITIONAL (IBehavior)
 //-----------------------------------------------------------------
-BehaviorState BehaviorConditional::Execute(Blackboard* pBlackBoard)
+BehaviorState BehaviorConditional::Execute(Blackboard* pBlackBoard, WorldState* pWorldState)
 {
 	if (m_fpConditional == nullptr)
 		return BehaviorState::Failure;
@@ -134,14 +134,40 @@ BehaviorState BehaviorConditional::Execute(Blackboard* pBlackBoard)
 	}
 
 }
+
+BehaviorState Elite::BehaviorConditionalBool::Execute(Blackboard* pBlackBoard, WorldState* pWorldState)
+{
+	if (m_pState == nullptr)
+		return BehaviorState::Failure;
+
+	switch (*m_pState)
+	{
+	case true:
+		m_CurrentState = BehaviorState::Success;
+		return m_CurrentState;
+	default:
+	case false:
+		m_CurrentState = m_CurrentState = BehaviorState::Failure;
+		return m_CurrentState;
+	}
+}
 //-----------------------------------------------------------------
 // BEHAVIOR TREE ACTION (IBehavior)
 //-----------------------------------------------------------------
-BehaviorState BehaviorAction::Execute(Blackboard* pBlackBoard)
+BehaviorState BehaviorAction::Execute(Blackboard* pBlackBoard, WorldState* pWorldState)
 {
 	if (m_fpAction == nullptr)
 		return BehaviorState::Failure;
 
 	m_CurrentState = m_fpAction(pBlackBoard);
+	return m_CurrentState;
+}
+
+BehaviorState Elite::BehaviorActionBool::Execute(Blackboard* pBlackBoard, WorldState* pWorldState)
+{
+	if (m_fpAction == nullptr)
+		return BehaviorState::Failure;
+
+	m_CurrentState = m_fpAction(pBlackBoard, pWorldState);
 	return m_CurrentState;
 }
