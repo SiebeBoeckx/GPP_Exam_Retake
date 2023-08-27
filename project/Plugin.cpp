@@ -44,14 +44,20 @@ void Plugin::Initialize(IBaseInterface* pInterface, PluginInfo& info)
 					{
 						new Elite::BehaviorConditionalBool(&m_pWorldState->ChangeWorldState().seeItem),
 						new Elite::BehaviorActionBool(BT_Actions::PickupFunctionality)
-					}),
+					})
+				}),
+			new Elite::BehaviorSelector({
 					//Move to houses
 					new Elite::BehaviorSequence(
 					{
-								new Elite::BehaviorConditionalBool(&m_pWorldState->ChangeWorldState().movingToHouse),
-								new Elite::BehaviorActionBool(BT_Actions::HouseFunctionality),
-								new Elite::BehaviorConditionalBool(&m_pWorldState->ChangeWorldState().agentInHouse)
-								})
+						new Elite::BehaviorConditionalBool(&m_pWorldState->ChangeWorldState().movingToHouse),
+						new Elite::BehaviorActionBool(BT_Actions::HouseFunctionality)
+					}),
+					new Elite::BehaviorSequence(
+					{
+						new Elite::BehaviorConditionalBool(&m_pWorldState->ChangeWorldState().agentInHouse),
+						new Elite::BehaviorActionBool(BT_Actions::HouseFunctionality)
+					})
 				})
 			})
 	, m_pWorldState);

@@ -38,11 +38,6 @@ namespace BT_Actions
 		Wander wander{};
 		IExamInterface* pInterface{};
 
-		bool entranceSet{};
-		bool leavingHouse{};
-		bool movingToHouse{};
-		bool agentInHouse{};
-
 		float currentTimeInHouse{};
 
 		if (!pBlackboard->GetData("Agent", pAgent) || &pAgent == nullptr)
@@ -100,28 +95,20 @@ namespace BT_Actions
 		//	return Elite::BehaviorState::Failure;
 		//}
 
-		entranceSet = pWorldState->GetWorldState().entranceSet;
-
 		//if (!pBlackboard->GetData("LeavingHouse", leavingHouse))
 		//{
 		//	return Elite::BehaviorState::Failure;
 		//}
-
-		leavingHouse = pWorldState->GetWorldState().leavingHouse;
 
 		//if (!pBlackboard->GetData("MovingToHouse", movingToHouse))
 		//{
 		//	return Elite::BehaviorState::Failure;
 		//}
 
-		movingToHouse = pWorldState->GetWorldState().movingToHouse;
-
 		//if (!pBlackboard->GetData("AgentInHouse", agentInHouse))
 		//{
 		//	return Elite::BehaviorState::Failure;
 		//}
-
-		agentInHouse = pWorldState->GetWorldState().agentInHouse;
 
 		if (!pBlackboard->GetData("CurrentTimeInHouse", currentTimeInHouse))
 		{
@@ -138,19 +125,19 @@ namespace BT_Actions
 		pInterface->Draw_Circle(nextTargetPos, 1, { 0,0,1 }, pInterface->NextDepthSlice());
 		pInterface->Draw_Circle(houseEntrance, 1, { 0,1,0 }, pInterface->NextDepthSlice());
 
-		if (movingToHouse)
+		if (pWorldState->ChangeWorldState().movingToHouse)
 		{
 			target = pTargetHouse.Center;
 
-			if (agentInHouse && !entranceSet && !leavingHouse) //set entrance when entering house, also set the timer back to 0
+			if (pWorldState->GetWorldState().agentInHouse && !pWorldState->GetWorldState().entranceSet && !pWorldState->GetWorldState().leavingHouse) //set entrance when entering house, also set the timer back to 0
 			{
 				pBlackboard->ChangeData("HouseEntrance", pAgent.Position);
 				pWorldState->ChangeWorldState().entranceSet = true;
-				movingToHouse = false;
+				pWorldState->ChangeWorldState().movingToHouse = false;
 				pBlackboard->ChangeData("CurrentTimeInHouse", 0.f);
 			}
 
-			if (!agentInHouse) //go to the house
+			if (!pWorldState->GetWorldState().agentInHouse) //go to the house
 			{
 				seek.SetTarget(nextTargetPos);
 				pSteeringBehaviour = seek.CalculateSteering(dt, &pAgent);
@@ -162,15 +149,15 @@ namespace BT_Actions
 
 		}
 
-		if (agentInHouse)
+		if (pWorldState->GetWorldState().agentInHouse)
 		{
-			if(!entranceSet && !leavingHouse) //Entered house without setting entrance, can happen when going to collect item
+			if(!pWorldState->GetWorldState().entranceSet && !pWorldState->GetWorldState().leavingHouse) //Entered house without setting entrance, can happen when going to collect item
 			{
 				const Elite::Vector2 tempTarget = pTargetHouse.Center + (pTargetHouse.Size * 2); //Set target outside house
 				const Elite::Vector2 tempNextTargetPos = pInterface->NavMesh_GetClosestPathPoint(tempTarget); //Get closest point till there, aka the door
 				pBlackboard->ChangeData("HouseEntrance", tempNextTargetPos);
 				pWorldState->ChangeWorldState().entranceSet = true;
-				movingToHouse = false;
+				pWorldState->ChangeWorldState().movingToHouse = false;
 			}
 			if (currentTimeInHouse > maxTimeIdleInHouse) //Seek to exit house after a while
 			{
@@ -203,10 +190,9 @@ namespace BT_Actions
 				return Elite::BehaviorState::Success;
 			}
 
-			if (!leavingHouse) //Look around the house
+			if (!pWorldState->GetWorldState().leavingHouse) //Look around the house
 			{
 				std::cout << "Trying to search house\n";
-				movingToHouse = false;
 				currentTimeInHouse += dt;
 				target = pTargetHouse.Center;
 				seek.SetTarget(target);
@@ -218,6 +204,7 @@ namespace BT_Actions
 			}
 		}
 
+		//Never reaches here, but fall back to be sure
 		pSteeringBehaviour = wander.CalculateSteering(dt, &pAgent);
 		pBlackboard->ChangeData("SteeringBehaviour", pSteeringBehaviour);
 		pBlackboard->ChangeData("CurrentTimeInHouse", currentTimeInHouse);

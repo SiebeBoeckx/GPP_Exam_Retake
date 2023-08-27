@@ -110,6 +110,8 @@ void WorldState::UpdateWorldState(Elite::Blackboard& blackboard) //Intensive fun
 	worldState.newHouse = NewHouseInFOV(blackboard);
 	worldState.movingToHouse = ShouldMoveToHouse(blackboard);
 	worldState.agentInHouse = AgentInHouse(blackboard);
+	worldState.entranceSet = m_WorldStates.entranceSet;
+	worldState.leavingHouse = m_WorldStates.leavingHouse;
 
 	m_WorldStates = worldState;
 }
