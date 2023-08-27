@@ -30,8 +30,3 @@ This would also be easier to implement if I had used a finite state machine wher
 	http://www.jorkin.com
 
 https://alumni.media.mit.edu/~jorkin/gdc2006_orkin_jeff_fear.pdf
-
-
- ## Demo
-
-Insert gif or link to demo	
