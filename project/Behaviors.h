@@ -130,13 +130,15 @@ namespace BT_Actions
 			target = pTargetHouse.Center;
 			pBlackboard->ChangeData("Target", target);
 
-			if (pWorldState->GetWorldState().agentInHouse && !pWorldState->GetWorldState().entranceSet && !pWorldState->GetWorldState().leavingHouse) //set entrance when entering house, also set the timer back to 0
-			{
-				pBlackboard->ChangeData("HouseEntrance", pAgent.Position);
-				pWorldState->ChangeWorldState().entranceSet = true;
-				pWorldState->ChangeWorldState().movingToHouse = false;
-				pBlackboard->ChangeData("CurrentTimeInHouse", 0.f);
-			}
+			//if (pWorldState->GetWorldState().agentInHouse && !pWorldState->GetWorldState().entranceSet && !pWorldState->GetWorldState().leavingHouse) //set entrance when entering house, also set the timer back to 0
+			//{
+			//	pBlackboard->ChangeData("HouseEntrance", pAgent.Position);
+			//	pWorldState->ChangeWorldState().entranceSet = true;
+			//	pWorldState->ChangeWorldState().movingToHouse = false;
+			//	pBlackboard->ChangeData("CurrentTimeInHouse", 0.f);
+			//}
+
+			//Removed above because i use a safer way to do it further down
 
 			if (!pWorldState->GetWorldState().agentInHouse) //go to the house
 			{
@@ -145,6 +147,7 @@ namespace BT_Actions
 				pBlackboard->ChangeData("SteeringBehaviour", pSteeringBehaviour);
 				//pBlackboard->ChangeData("LeavingHouse", false);
 				pWorldState->ChangeWorldState().leavingHouse = false;
+				pBlackboard->ChangeData("CurrentTimeInHouse", 0.f);
 				return Elite::BehaviorState::Success;
 			}
 
@@ -159,14 +162,16 @@ namespace BT_Actions
 				pBlackboard->ChangeData("HouseEntrance", tempNextTargetPos);
 				pWorldState->ChangeWorldState().entranceSet = true;
 				pWorldState->ChangeWorldState().movingToHouse = false;
+				pBlackboard->ChangeData("CurrentTimeInHouse", 0.f);
 			}
 			if (currentTimeInHouse > maxTimeIdleInHouse) //Seek to exit house after a while
 			{
 				//std::cout << "Trying to exit\n";
-				target = houseEntrance;
-				seek.SetTarget(target);
+				const Elite::Vector2 tempTarget = pTargetHouse.Center + (pTargetHouse.Size * 2); //Set target outside house
+				const Elite::Vector2 tempNextTargetPos = pInterface->NavMesh_GetClosestPathPoint(tempTarget); //Get closest point till there, aka the door
+				seek.SetTarget(tempNextTargetPos);
 				pSteeringBehaviour = seek.CalculateSteering(dt, &pAgent);
-				pBlackboard->ChangeData("Target", target);
+				pBlackboard->ChangeData("Target", tempNextTargetPos);
 				pBlackboard->ChangeData("SteeringBehaviour", pSteeringBehaviour);
 				pWorldState->ChangeWorldState().entranceSet = false;
 				
@@ -257,6 +262,7 @@ namespace BT_Actions
 			pFlee.SetTarget(pEnemyVec[0]->Location);
 			pSteering = pFlee.CalculateSteering(dt, &pAgent);
 			pBlackboard->ChangeData("SteeringBehaviour", pSteering);
+			pBlackboard->ChangeData("Flee", pFlee);
 			return Elite::BehaviorState::Success;
 	}
 
@@ -520,6 +526,7 @@ namespace BT_Actions
 		Seek seek{};
 		ExploreDirections direction{};
 		IExamInterface* pInterface{};
+		Elite::Vector2 target{};
 
 		if (!pBlackboard->GetData("Agent", agent))
 		{
@@ -551,6 +558,11 @@ namespace BT_Actions
 			return Elite::BehaviorState::Failure;
 		}
 
+		if (!pBlackboard->GetData("Target", target))
+		{
+			return Elite::BehaviorState::Failure;
+		}
+
 #pragma endregion
 
 		const Elite::Vector2 topLeft {-150.f, 200.f};
@@ -562,12 +574,12 @@ namespace BT_Actions
 		//pInterface->Draw_SolidCircle(topRight, 10.f, { 0,0 }, { 1,1,1 });
 		//pInterface->Draw_SolidCircle(bottomLeft, 10.f, { 0,0 }, { 1,1,1 });
 		//pInterface->Draw_SolidCircle(bottomRight, 10.f, { 0,0 }, { 1,1,1 });
-		Elite::Vector2 nextTargetPos{};
+		const Elite::Vector2 nextTargetPos = pInterface->NavMesh_GetClosestPathPoint(target);
 
 		switch(direction) //Go to corners to explore
 		{
 		case ExploreDirections::TopLeft:
-			nextTargetPos = pInterface->NavMesh_GetClosestPathPoint(topLeft);
+			target = topLeft;
 			seek.SetTarget(nextTargetPos);
 			if (topLeft.DistanceSquared(agent.Position) <= 5.f)//Arrived at location
 			{
@@ -576,7 +588,7 @@ namespace BT_Actions
 			}
 			break;
 		case ExploreDirections::TopRight:
-			nextTargetPos = pInterface->NavMesh_GetClosestPathPoint(topRight);
+			target = topRight;
 			seek.SetTarget(nextTargetPos);
 			if (topRight.DistanceSquared(agent.Position) <= 5.f)//Arrived at location
 			{
@@ -585,7 +597,7 @@ namespace BT_Actions
 			}
 			break;
 		case ExploreDirections::BottomLeft:
-			nextTargetPos = pInterface->NavMesh_GetClosestPathPoint(bottomLeft);
+			target = bottomLeft;
 			seek.SetTarget(nextTargetPos);
 			if (bottomLeft.DistanceSquared(agent.Position) <= 5.f)//Arrived at location
 			{
@@ -594,7 +606,7 @@ namespace BT_Actions
 			}
 			break;
 		case ExploreDirections::BottomRight:
-			nextTargetPos = pInterface->NavMesh_GetClosestPathPoint(bottomRight);
+			target = bottomRight;
 			seek.SetTarget(nextTargetPos);
 			if (bottomRight.DistanceSquared(agent.Position) <= 5.f)//Arrived at location
 			{
@@ -608,6 +620,7 @@ namespace BT_Actions
 
 		pSteeringBehaviour = seek.CalculateSteering(dt, &agent);
 		pBlackboard->ChangeData("SteeringBehaviour", pSteeringBehaviour);
+		pBlackboard->ChangeData("Target", target);
 		return Elite::BehaviorState::Success;
 	}
 }
