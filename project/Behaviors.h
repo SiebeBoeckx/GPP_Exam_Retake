@@ -117,7 +117,7 @@ namespace BT_Actions
 
 #pragma endregion
 		//House functionality
-		
+
 		const float maxTimeIdleInHouse{ 3.f };
 		Elite::Vector2 nextTargetPos = pInterface->NavMesh_GetClosestPathPoint(target);
 		pInterface->Draw_Circle(nextTargetPos, 1, { 0,0,1 }, pInterface->NextDepthSlice());
@@ -231,18 +231,19 @@ namespace BT_Actions
 		Flee pFlee{};
 		float dt{};
 		std::vector<EntityInfo*> pEnemyVec{};
+		Elite::Vector2 target{};
 
-		if (!pBlackboard->GetData("Agent", pAgent) || &pAgent == nullptr)
+		if (!pBlackboard->GetData("Agent", pAgent))
 		{
 			return Elite::BehaviorState::Failure;
 		}
 
-		if (!pBlackboard->GetData("SteeringBehaviour", pSteering) || &pSteering == nullptr)
+		if (!pBlackboard->GetData("SteeringBehaviour", pSteering))
 		{
 			return Elite::BehaviorState::Failure;
 		}
 
-		if (!pBlackboard->GetData("Flee", pFlee) || &pFlee == nullptr)
+		if (!pBlackboard->GetData("Flee", pFlee))
 		{
 			return Elite::BehaviorState::Failure;
 		}
@@ -252,18 +253,25 @@ namespace BT_Actions
 			return Elite::BehaviorState::Failure;
 		}
 
-		if (!pBlackboard->GetData("EnemiesInFOV", pEnemyVec) || &pEnemyVec == nullptr)
+		if (!pBlackboard->GetData("EnemiesInFOV", pEnemyVec))
+		{
+			return Elite::BehaviorState::Failure;
+		}
+
+		if (!pBlackboard->GetData("Target", target))
 		{
 			return Elite::BehaviorState::Failure;
 		}
 
 #pragma endregion
 
-			pFlee.SetTarget(pEnemyVec[0]->Location);
-			pSteering = pFlee.CalculateSteering(dt, &pAgent);
-			pBlackboard->ChangeData("SteeringBehaviour", pSteering);
-			pBlackboard->ChangeData("Flee", pFlee);
-			return Elite::BehaviorState::Success;
+		target = pEnemyVec[0]->Location;
+		pFlee.SetTarget(target);
+		pSteering = pFlee.CalculateSteering(dt, &pAgent);
+		pBlackboard->ChangeData("Target", target);
+		pBlackboard->ChangeData("SteeringBehaviour", pSteering);
+		pBlackboard->ChangeData("Flee", pFlee);
+		return Elite::BehaviorState::Running;
 	}
 
 	Elite::BehaviorState UseGun(Elite::Blackboard* pBlackboard)

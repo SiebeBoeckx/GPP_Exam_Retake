@@ -10,7 +10,8 @@ struct WorldStates
 	bool seeEnemy{};
 	bool seeItem{};
 	bool seePurge{};
-	bool lookingAt{};
+	bool lookingAtEnemy{};
+	bool lookingAtItem{};
 	bool inPickupRange{};
 	bool lowHP{};
 	bool lowEnergy{};

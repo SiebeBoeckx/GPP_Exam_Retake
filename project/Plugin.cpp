@@ -31,22 +31,25 @@ void Plugin::Initialize(IBaseInterface* pInterface, PluginInfo& info)
 		new Elite::BehaviorSelector(
 			{
 				new Elite::BehaviorSelector({
+				//Shoot the enemies
+				new Elite::BehaviorSequence(
+					{
+						new Elite::BehaviorConditionalBool(&m_pWorldState->ChangeWorldState().lookingAtEnemy),
+						new Elite::BehaviorAction(BT_Actions::UseGun)
+					}),
 				//Flee from enemies
 				new Elite::BehaviorSequence(
 					{
 						new Elite::BehaviorConditionalBool(&m_pWorldState->ChangeWorldState().seeEnemy),
 						new Elite::BehaviorAction(BT_Actions::FleeEnemy),
-						new Elite::BehaviorConditionalBool(&m_pWorldState->ChangeWorldState().lookingAt),
-						new Elite::BehaviorAction(BT_Actions::UseGun)
 					}),
-					//Pickup items
-					new Elite::BehaviorSequence(
+				//Pickup items
+				new Elite::BehaviorSequence(
 					{
 						new Elite::BehaviorConditionalBool(&m_pWorldState->ChangeWorldState().seeItem),
 						new Elite::BehaviorActionBool(BT_Actions::PickupFunctionality)
-					})
-				}),
-			new Elite::BehaviorSelector({
+					}),
+				new Elite::BehaviorSelector({
 					//Move to houses
 					new Elite::BehaviorSequence(
 					{
@@ -64,7 +67,9 @@ void Plugin::Initialize(IBaseInterface* pInterface, PluginInfo& info)
 					{
 						new Elite::BehaviorActionBool(BT_Actions::ExploreWorld)
 					})
+					})
 				})
+
 			})
 	, m_pWorldState);
 }

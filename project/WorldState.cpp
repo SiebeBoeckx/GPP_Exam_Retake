@@ -72,9 +72,9 @@ void WorldState::UpdateWorldState(Elite::Blackboard& blackboard) //Intensive fun
 		const Elite::Vector2 desiredVector = Elite::Vector2(target.Location - pAgent.Position);
 		const Elite::Vector2 lookVector{ std::cosf(pAgent.Orientation), std::sinf(pAgent.Orientation) };
 
-		if (fabsf(Elite::AngleBetween(lookVector, desiredVector)) < 0.02f)
+		if (fabsf(Elite::AngleBetween(lookVector, desiredVector)) < 0.05f)
 		{
-			worldState.lookingAt = true;
+			worldState.lookingAtEnemy = true;
 		}
 	}
 	else if (!items.empty())
@@ -86,7 +86,7 @@ void WorldState::UpdateWorldState(Elite::Blackboard& blackboard) //Intensive fun
 
 		if (fabsf(Elite::AngleBetween(lookVector, desiredVector)) < 0.1f)
 		{
-			worldState.lookingAt = true;
+			worldState.lookingAtItem = true;
 		}
 
 		if (target.Location.DistanceSquared(pAgent.Position) <= pAgent.GrabRange * pAgent.GrabRange)
