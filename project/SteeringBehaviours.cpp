@@ -8,6 +8,8 @@ SteeringPlugin_Output Arrive::CalculateSteering(float deltaT, AgentInfo* pAgent)
 	SteeringPlugin_Output steering = {};
 	steering.AutoOrient = false;
 
+	pAgent->RunMode = false;
+
 	steering.LinearVelocity = m_Target.Location - pAgent->Position;
 	steering.LinearVelocity.Normalize();
 
@@ -54,6 +56,8 @@ SteeringPlugin_Output Seek::CalculateSteering(float deltaT, AgentInfo* pAgent)
 	SteeringPlugin_Output steering = {};
 	steering.AutoOrient = false;
 
+	pAgent->RunMode = false;
+
 	steering.LinearVelocity = m_Target.Location - pAgent->Position;
 	steering.LinearVelocity.Normalize();
 	steering.LinearVelocity *= pAgent->MaxLinearSpeed;
@@ -90,6 +94,8 @@ SteeringPlugin_Output Flee::CalculateSteering(float deltaT, AgentInfo* pAgent)
 	SteeringPlugin_Output steering = {};
 	steering.AutoOrient = false;
 
+	pAgent->RunMode = true;
+
 	const Elite::Vector2 toTarget{ m_Target.Location - pAgent->Position };
 	const float distanceSquared{ toTarget.MagnitudeSquared() };
 
@@ -104,8 +110,8 @@ SteeringPlugin_Output Flee::CalculateSteering(float deltaT, AgentInfo* pAgent)
 	const Elite::Vector2 desiredVector = Elite::Vector2(m_Target.Location - pAgent->Position);
 	const Elite::Vector2 lookVector{ std::cosf(pAgent->Orientation), std::sinf(pAgent->Orientation) };
 
-	//if (!(fabsf(Elite::AngleBetween(lookVector, desiredVector)) < 0.05f))
-	//{
+	if (!(fabsf(Elite::AngleBetween(lookVector, desiredVector)) < 0.05f))
+	{
 		if (Elite::AngleBetween(lookVector, desiredVector) > 0)
 		{
 			steering.AngularVelocity = pAgent->MaxAngularSpeed;
@@ -115,7 +121,7 @@ SteeringPlugin_Output Flee::CalculateSteering(float deltaT, AgentInfo* pAgent)
 			steering.AngularVelocity = -pAgent->MaxAngularSpeed;
 		}
 
-	//}
+	}
 
 	return steering;
 }

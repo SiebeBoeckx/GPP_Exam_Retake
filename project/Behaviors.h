@@ -270,34 +270,24 @@ namespace BT_Actions
 		ItemInfo gunInfo{};
 		if (pInterface->Inventory_GetItem(0, gunInfo))
 		{
-			if (pInterface->Weapon_GetAmmo(gunInfo) > 0)
-			{
-				hasGun = true;
-
-			}
+			hasGun = true;
 		}
 		if (pInterface->Inventory_GetItem(1, gunInfo))
 		{
-			if (pInterface->Weapon_GetAmmo(gunInfo) > 1)
-			{
-				hasGun = true;
-			}
+			hasGun = true;
 		}
-
-		const Elite::Vector2 nextTargetPos = pInterface->NavMesh_GetClosestPathPoint(target);
 
 		if (hasGun)
 		{
 			target = pEnemyVec[0]->Location;
-			pFlee.SetTarget(nextTargetPos);
-			pFlee.SetFleeRadius(pAgent.FOV_Range);
+			pFlee.SetTarget(target);
+			pFlee.SetFleeRadius(pAgent.FOV_Range * 1.5f);
 			pSteering = pFlee.CalculateSteering(dt, &pAgent);
 			pBlackboard->ChangeData("Target", target);
 			pBlackboard->ChangeData("SteeringBehaviour", pSteering);
 			pBlackboard->ChangeData("Flee", pFlee);
 			return Elite::BehaviorState::Running;
 		}
-
 		return Elite::BehaviorState::Failure;
 	}
 
@@ -334,14 +324,21 @@ namespace BT_Actions
 			if (pInterface->Weapon_GetAmmo(gunInfo) > 0)
 			{
 				hasPistol = true;
-				
+			}
+			else
+			{
+				pInterface->Inventory_RemoveItem(0);
 			}
 		}
 		if (pInterface->Inventory_GetItem(1, gunInfo))
 		{
-			if (pInterface->Weapon_GetAmmo(gunInfo) > 1)
+			if (pInterface->Weapon_GetAmmo(gunInfo) > 0)
 			{
 				hasShotgun = true;
+			}
+			else
+			{
+				pInterface->Inventory_RemoveItem(1);
 			}
 		}
 
@@ -685,14 +682,14 @@ namespace BT_Actions
 		ItemInfo foodInfo{};
 		if (pInterface->Inventory_GetItem(3, foodInfo))
 		{
-			pInterface->Inventory_UseItem(4);
-			pInterface->Inventory_RemoveItem(4);
+			pInterface->Inventory_UseItem(3);
+			pInterface->Inventory_RemoveItem(3);
 			return Elite::BehaviorState::Success;
 		}
 		else if (pInterface->Inventory_GetItem(4, foodInfo))
 		{
-			pInterface->Inventory_UseItem(3);
-			pInterface->Inventory_RemoveItem(3);
+			pInterface->Inventory_UseItem(4);
+			pInterface->Inventory_RemoveItem(4);
 			return Elite::BehaviorState::Success;
 		}
 		return Elite::BehaviorState::Failure;
@@ -773,13 +770,11 @@ namespace BT_Actions
 		PurgeZoneInfo purge{};
 		pInterface->PurgeZone_GetInfo(purgeEntity, purge);
 
-		const Elite::Vector2 nextTargetPos = pInterface->NavMesh_GetClosestPathPoint(target);
-
 		if (purge.Center.DistanceSquared(pAgent.Position) < purge.Radius * purge.Radius + pAgent.FOV_Range)
 		{
 			target = purge.Center;
-			pFlee.SetTarget(nextTargetPos);
-			pFlee.SetFleeRadius(purge.Radius + pAgent.FOV_Range);
+			pFlee.SetTarget(target);
+			pFlee.SetFleeRadius(purge.Radius + pAgent.FOV_Range * 0.8f); //keep looking to see when it's gone
 			pSteering = pFlee.CalculateSteering(dt, &pAgent);
 			pBlackboard->ChangeData("Target", target);
 			pBlackboard->ChangeData("SteeringBehaviour", pSteering);
