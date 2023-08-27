@@ -214,10 +214,8 @@ namespace BT_Actions
 			}
 		}
 
-		//Never reaches here, but fall back to be sure
-		pSteeringBehaviour = wander.CalculateSteering(dt, &pAgent);
-		pBlackboard->ChangeData("SteeringBehaviour", pSteeringBehaviour);
-		pBlackboard->ChangeData("CurrentTimeInHouse", currentTimeInHouse);
+		//Reaches here once when entering new house, leaving house does not get set false when leaving previous one
+		pWorldState->ChangeWorldState().leavingHouse = false;
 		return Elite::BehaviorState::Success;
 	}
 
