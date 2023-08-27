@@ -232,6 +232,7 @@ namespace BT_Actions
 		float dt{};
 		std::vector<EntityInfo*> pEnemyVec{};
 		Elite::Vector2 target{};
+		IExamInterface* pInterface{};
 
 		if (!pBlackboard->GetData("Agent", pAgent))
 		{
@@ -263,19 +264,49 @@ namespace BT_Actions
 			return Elite::BehaviorState::Failure;
 		}
 
+		if (!pBlackboard->GetData("Interface", pInterface) || pInterface == nullptr)
+		{
+			return Elite::BehaviorState::Failure;
+		}
+
 #pragma endregion
 
-		target = pEnemyVec[0]->Location;
-		pFlee.SetTarget(target);
-		pSteering = pFlee.CalculateSteering(dt, &pAgent);
-		pBlackboard->ChangeData("Target", target);
-		pBlackboard->ChangeData("SteeringBehaviour", pSteering);
-		pBlackboard->ChangeData("Flee", pFlee);
-		return Elite::BehaviorState::Running;
+		bool hasGun{};
+
+		ItemInfo gunInfo{};
+		if (pInterface->Inventory_GetItem(0, gunInfo))
+		{
+			if (pInterface->Weapon_GetAmmo(gunInfo) > 0)
+			{
+				hasGun = true;
+
+			}
+		}
+		if (pInterface->Inventory_GetItem(1, gunInfo))
+		{
+			if (pInterface->Weapon_GetAmmo(gunInfo) > 1)
+			{
+				hasGun = true;
+			}
+		}
+
+		if (hasGun)
+		{
+			target = pEnemyVec[0]->Location;
+			pFlee.SetTarget(target);
+			pSteering = pFlee.CalculateSteering(dt, &pAgent);
+			pBlackboard->ChangeData("Target", target);
+			pBlackboard->ChangeData("SteeringBehaviour", pSteering);
+			pBlackboard->ChangeData("Flee", pFlee);
+			return Elite::BehaviorState::Running;
+		}
+
+		return Elite::BehaviorState::Failure;
 	}
 
 	Elite::BehaviorState UseGun(Elite::Blackboard* pBlackboard)
 	{
+#pragma region GetVariables
 		IExamInterface* pInterface{};
 		AgentInfo agent{};
 		std::vector<EntityInfo*> pEnemyVec{};
@@ -294,6 +325,8 @@ namespace BT_Actions
 		{
 			return Elite::BehaviorState::Failure;
 		}
+
+#pragma endregion
 
 		bool hasPistol{};
 		bool hasShotgun{};
@@ -320,7 +353,7 @@ namespace BT_Actions
 			return Elite::BehaviorState::Failure;
 		}
 
-		if (pEnemyVec[0]->Location.DistanceSquared(agent.Position) <= agent.GrabRange * 4 && hasShotgun)//using grab range since i kinda know the size (is rendered)
+		if (pEnemyVec[0]->Location.DistanceSquared(agent.Position) <= agent.GrabRange * 2 && hasShotgun)//using grab range since i kinda know the size (is rendered)
 		{
 			pInterface->Inventory_UseItem(1);
 			return Elite::BehaviorState::Success;
@@ -328,6 +361,11 @@ namespace BT_Actions
 		else if(hasPistol)
 		{
 			pInterface->Inventory_UseItem(0);
+			return Elite::BehaviorState::Success;
+		}
+		else if(hasShotgun)
+		{
+			pInterface->Inventory_UseItem(1);
 			return Elite::BehaviorState::Success;
 		}
 
@@ -525,7 +563,7 @@ namespace BT_Actions
 		return Elite::BehaviorState::Success;
 	}
 
-	Elite::BehaviorState ExploreWorld(Elite::Blackboard* pBlackboard, WorldState* pWorldState)
+	Elite::BehaviorState ExploreWorld(Elite::Blackboard* pBlackboard)
 	{
 #pragma region GetVariables
 		AgentInfo agent{};
@@ -630,6 +668,58 @@ namespace BT_Actions
 		pBlackboard->ChangeData("SteeringBehaviour", pSteeringBehaviour);
 		pBlackboard->ChangeData("Target", target);
 		return Elite::BehaviorState::Success;
+	}
+
+	Elite::BehaviorState UseFood(Elite::Blackboard* pBlackboard)
+	{
+#pragma region GetVariables
+
+		IExamInterface* pInterface{};
+
+		if (!pBlackboard->GetData("Interface", pInterface) || pInterface == nullptr)
+		{
+			return Elite::BehaviorState::Failure;
+		}
+
+#pragma endregion
+
+		ItemInfo foodInfo{};
+		if (pInterface->Inventory_GetItem(4, foodInfo))
+		{
+			pInterface->Inventory_UseItem(4);
+			pInterface->Inventory_RemoveItem(4);
+			return Elite::BehaviorState::Success;
+		}
+		return Elite::BehaviorState::Failure;
+	}
+
+	Elite::BehaviorState UseMedkit(Elite::Blackboard* pBlackboard)
+	{
+#pragma region GetVariables
+
+		IExamInterface* pInterface{};
+
+		if (!pBlackboard->GetData("Interface", pInterface) || pInterface == nullptr)
+		{
+			return Elite::BehaviorState::Failure;
+		}
+
+#pragma endregion
+
+		ItemInfo medkitInfo{};
+		if (pInterface->Inventory_GetItem(2, medkitInfo))
+		{
+			pInterface->Inventory_UseItem(2);
+			pInterface->Inventory_RemoveItem(2);
+			return Elite::BehaviorState::Success;
+		}
+		else if(pInterface->Inventory_GetItem(3, medkitInfo))
+		{
+			pInterface->Inventory_UseItem(3);
+			pInterface->Inventory_RemoveItem(3);
+			return Elite::BehaviorState::Success;
+		}
+		return Elite::BehaviorState::Failure;
 	}
 }
 

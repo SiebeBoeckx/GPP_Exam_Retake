@@ -31,6 +31,18 @@ void Plugin::Initialize(IBaseInterface* pInterface, PluginInfo& info)
 		new Elite::BehaviorSelector(
 			{
 				new Elite::BehaviorSelector({
+				//Eat food
+				new Elite::BehaviorSequence(
+					{
+						new Elite::BehaviorConditionalBool(&m_pWorldState->ChangeWorldState().lowEnergy),
+						new Elite::BehaviorAction(BT_Actions::UseFood)
+					}),
+				//Heal
+				new Elite::BehaviorSequence(
+					{
+						new Elite::BehaviorConditionalBool(&m_pWorldState->ChangeWorldState().lowHP),
+						new Elite::BehaviorAction(BT_Actions::UseMedkit)
+					}),
 				//Shoot the enemies
 				new Elite::BehaviorSequence(
 					{
@@ -65,7 +77,7 @@ void Plugin::Initialize(IBaseInterface* pInterface, PluginInfo& info)
 					//Explore
 					new Elite::BehaviorSequence(
 					{
-						new Elite::BehaviorActionBool(BT_Actions::ExploreWorld)
+						new Elite::BehaviorAction(BT_Actions::ExploreWorld)
 					})
 					})
 				})
