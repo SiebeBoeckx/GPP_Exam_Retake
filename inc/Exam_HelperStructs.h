@@ -179,3 +179,15 @@ struct AgentInfo
 	float AgentSize;
 };
 #pragma endregion
+
+#pragma region MyOwnHelpers
+
+enum class ExploreDirections
+{
+	TopLeft,
+	TopRight,
+	BottomLeft,
+	BottomRight
+};
+
+#pragma endregion

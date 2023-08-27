@@ -37,7 +37,7 @@ void Plugin::Initialize(IBaseInterface* pInterface, PluginInfo& info)
 						new Elite::BehaviorConditionalBool(&m_pWorldState->ChangeWorldState().seeEnemy),
 						new Elite::BehaviorAction(BT_Actions::FleeEnemy),
 						new Elite::BehaviorConditionalBool(&m_pWorldState->ChangeWorldState().lookingAt),
-						new Elite::BehaviorAction(BT_Actions::UsePistol)
+						new Elite::BehaviorAction(BT_Actions::UseGun)
 					}),
 					//Pickup items
 					new Elite::BehaviorSequence(
@@ -53,10 +53,16 @@ void Plugin::Initialize(IBaseInterface* pInterface, PluginInfo& info)
 						new Elite::BehaviorConditionalBool(&m_pWorldState->ChangeWorldState().movingToHouse),
 						new Elite::BehaviorActionBool(BT_Actions::HouseFunctionality)
 					}),
+					//Search house
 					new Elite::BehaviorSequence(
 					{
 						new Elite::BehaviorConditionalBool(&m_pWorldState->ChangeWorldState().agentInHouse),
 						new Elite::BehaviorActionBool(BT_Actions::HouseFunctionality)
+					}),
+					//Explore
+					new Elite::BehaviorSequence(
+					{
+						new Elite::BehaviorActionBool(BT_Actions::ExploreWorld)
 					})
 				})
 			})
@@ -88,12 +94,12 @@ void Plugin::InitGameDebugParams(GameDebugParams& params)
 	params.AutoGrabClosestItem = true; //A call to Item_Grab(...) returns the closest item that can be grabbed. (EntityInfo argument is ignored)
 	params.StartingDifficultyStage = 1;
 	params.InfiniteStamina = false;
-	params.SpawnDebugPistol = true;
-	params.SpawnDebugShotgun = true;
+	params.SpawnDebugPistol = false;
+	params.SpawnDebugShotgun = false;
 	params.SpawnPurgeZonesOnMiddleClick = true;
 	params.PrintDebugMessages = true;
 	params.ShowDebugItemNames = true;
-	params.Seed = 36;
+	params.Seed = 1;
 }
 
 //Only Active in DEBUG Mode
@@ -108,6 +114,7 @@ void Plugin::Update(float dt)
 		Elite::MouseData mouseData = m_pInterface->Input_GetMouseData(Elite::InputType::eMouseButton, Elite::InputMouseButton::eLeft);
 		const Elite::Vector2 pos = Elite::Vector2(static_cast<float>(mouseData.X), static_cast<float>(mouseData.Y));
 		m_Target = m_pInterface->Debug_ConvertScreenToWorld(pos);
+		std::cout << pos << '\n';
 	}
 	else if (m_pInterface->Input_IsKeyboardKeyDown(Elite::eScancode_Space))
 	{
@@ -281,7 +288,7 @@ SteeringPlugin_Output Plugin::UpdateSteering(float dt)
 void Plugin::Render(float dt) const
 {
 	//This Render function should only contain calls to Interface->Draw_... functions
-	m_pInterface->Draw_SolidCircle(m_Target, .7f, { 0,0 }, { 1, 0, 0 });
+	//m_pInterface->Draw_SolidCircle(m_Target, .7f, { 0,0 }, { 1, 0, 0 });
 }
 
 vector<HouseInfo> Plugin::GetHousesInFOV() const
@@ -359,6 +366,9 @@ Elite::Blackboard* Plugin::CreateBlackboard(AgentInfo& a)
 	pBlackboard->AddData("TargetEnemy", EntityInfo{});
 	pBlackboard->AddData("ItemsInFOV", std::vector<EntityInfo*>{});
 	pBlackboard->AddData("PurgesInFOV", std::vector<EntityInfo*>{});
+
+	//Explore directions
+	pBlackboard->AddData("ExploreDirection", ExploreDirections{ExploreDirections::TopLeft});
 
 	return pBlackboard;
 }

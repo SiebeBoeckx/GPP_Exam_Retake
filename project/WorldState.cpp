@@ -72,7 +72,7 @@ void WorldState::UpdateWorldState(Elite::Blackboard& blackboard) //Intensive fun
 		const Elite::Vector2 desiredVector = Elite::Vector2(target.Location - pAgent.Position);
 		const Elite::Vector2 lookVector{ std::cosf(pAgent.Orientation), std::sinf(pAgent.Orientation) };
 
-		if (fabsf(Elite::AngleBetween(lookVector, desiredVector)) < 0.1f)
+		if (fabsf(Elite::AngleBetween(lookVector, desiredVector)) < 0.02f)
 		{
 			worldState.lookingAt = true;
 		}

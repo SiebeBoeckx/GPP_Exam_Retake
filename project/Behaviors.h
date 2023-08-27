@@ -40,12 +40,12 @@ namespace BT_Actions
 
 		float currentTimeInHouse{};
 
-		if (!pBlackboard->GetData("Agent", pAgent) || &pAgent == nullptr)
+		if (!pBlackboard->GetData("Agent", pAgent))
 		{
 			return Elite::BehaviorState::Failure;
 		}
 
-		if (!pBlackboard->GetData("FoundHouses", pFoundHouses) || &pFoundHouses == nullptr)
+		if (!pBlackboard->GetData("FoundHouses", pFoundHouses))
 		{
 			return Elite::BehaviorState::Failure;
 		}
@@ -75,12 +75,12 @@ namespace BT_Actions
 			return Elite::BehaviorState::Failure;
 		}
 
-		if (!pBlackboard->GetData("Seek", seek) || &seek == nullptr)
+		if (!pBlackboard->GetData("Seek", seek))
 		{
 			return Elite::BehaviorState::Failure;
 		}
 
-		if (!pBlackboard->GetData("Wander", wander) || &wander == nullptr)
+		if (!pBlackboard->GetData("Wander", wander))
 		{
 			return Elite::BehaviorState::Failure;
 		}
@@ -116,8 +116,6 @@ namespace BT_Actions
 		}
 
 #pragma endregion
-		//Always increase time since last loot of all houses
-
 		//House functionality
 		
 		const float maxTimeIdleInHouse{ 3.f };
@@ -164,7 +162,7 @@ namespace BT_Actions
 			}
 			if (currentTimeInHouse > maxTimeIdleInHouse) //Seek to exit house after a while
 			{
-				std::cout << "Trying to exit\n";
+				//std::cout << "Trying to exit\n";
 				target = houseEntrance;
 				seek.SetTarget(target);
 				pSteeringBehaviour = seek.CalculateSteering(dt, &pAgent);
@@ -194,7 +192,7 @@ namespace BT_Actions
 
 			if (!pWorldState->GetWorldState().leavingHouse) //Look around the house
 			{
-				std::cout << "Trying to search house\n";
+				//std::cout << "Trying to search house\n";
 				currentTimeInHouse += dt;
 				target = pTargetHouse.Center;
 				seek.SetTarget(target);
@@ -262,23 +260,61 @@ namespace BT_Actions
 			return Elite::BehaviorState::Success;
 	}
 
-	Elite::BehaviorState UsePistol(Elite::Blackboard* pBlackboard)
+	Elite::BehaviorState UseGun(Elite::Blackboard* pBlackboard)
 	{
 		IExamInterface* pInterface{};
+		AgentInfo agent{};
+		std::vector<EntityInfo*> pEnemyVec{};
 
 		if (!pBlackboard->GetData("Interface", pInterface) || pInterface == nullptr)
 		{
 			return Elite::BehaviorState::Failure;
 		}
 
+		if (!pBlackboard->GetData("Agent", agent))
+		{
+			return Elite::BehaviorState::Failure;
+		}
+
+		if (!pBlackboard->GetData("EnemiesInFOV", pEnemyVec))
+		{
+			return Elite::BehaviorState::Failure;
+		}
+
+		bool hasPistol{};
+		bool hasShotgun{};
+
 		ItemInfo gunInfo{};
 		if (pInterface->Inventory_GetItem(0, gunInfo))
 		{
 			if (pInterface->Weapon_GetAmmo(gunInfo) > 0)
 			{
-				pInterface->Inventory_UseItem(0);
-				return Elite::BehaviorState::Success;
+				hasPistol = true;
+				
 			}
+		}
+		if (pInterface->Inventory_GetItem(1, gunInfo))
+		{
+			if (pInterface->Weapon_GetAmmo(gunInfo) > 1)
+			{
+				hasShotgun = true;
+			}
+		}
+
+		if(!hasPistol && !hasShotgun)
+		{
+			return Elite::BehaviorState::Failure;
+		}
+
+		if (pEnemyVec[0]->Location.DistanceSquared(agent.Position) <= agent.GrabRange * 4 && hasShotgun)//using grab range since i kinda know the size (is rendered)
+		{
+			pInterface->Inventory_UseItem(1);
+			return Elite::BehaviorState::Success;
+		}
+		else if(hasPistol)
+		{
+			pInterface->Inventory_UseItem(0);
+			return Elite::BehaviorState::Success;
 		}
 
 		return Elite::BehaviorState::Failure;
@@ -472,6 +508,106 @@ namespace BT_Actions
 				return Elite::BehaviorState::Failure;
 			}
 		}
+		return Elite::BehaviorState::Success;
+	}
+
+	Elite::BehaviorState ExploreWorld(Elite::Blackboard* pBlackboard, WorldState* pWorldState)
+	{
+#pragma region GetVariables
+		AgentInfo agent{};
+		SteeringPlugin_Output pSteeringBehaviour{};
+		float dt{};
+		Seek seek{};
+		ExploreDirections direction{};
+		IExamInterface* pInterface{};
+
+		if (!pBlackboard->GetData("Agent", agent))
+		{
+			return Elite::BehaviorState::Failure;
+		}
+
+		if (!pBlackboard->GetData("SteeringBehaviour", pSteeringBehaviour))
+		{
+			return Elite::BehaviorState::Failure;
+		}
+
+		if (!pBlackboard->GetData("dt", dt))
+		{
+			return Elite::BehaviorState::Failure;
+		}
+
+		if (!pBlackboard->GetData("Seek", seek))
+		{
+			return Elite::BehaviorState::Failure;
+		}
+
+		if (!pBlackboard->GetData("ExploreDirection", direction))
+		{
+			return Elite::BehaviorState::Failure;
+		}
+
+		if (!pBlackboard->GetData("Interface", pInterface) || pInterface == nullptr)
+		{
+			return Elite::BehaviorState::Failure;
+		}
+
+#pragma endregion
+
+		const Elite::Vector2 topLeft {-150.f, 200.f};
+		const Elite::Vector2 topRight {150.f, 200.f};
+		const Elite::Vector2 bottomLeft {-150.f, -200.f};
+		const Elite::Vector2 bottomRight {150.f, -200.f};
+
+		//pInterface->Draw_SolidCircle(topLeft, 10.f, { 0,0 }, { 1,1,1 });
+		//pInterface->Draw_SolidCircle(topRight, 10.f, { 0,0 }, { 1,1,1 });
+		//pInterface->Draw_SolidCircle(bottomLeft, 10.f, { 0,0 }, { 1,1,1 });
+		//pInterface->Draw_SolidCircle(bottomRight, 10.f, { 0,0 }, { 1,1,1 });
+		Elite::Vector2 nextTargetPos{};
+
+		switch(direction) //Go to corners to explore
+		{
+		case ExploreDirections::TopLeft:
+			nextTargetPos = pInterface->NavMesh_GetClosestPathPoint(topLeft);
+			seek.SetTarget(nextTargetPos);
+			if (topLeft.DistanceSquared(agent.Position) <= 5.f)//Arrived at location
+			{
+				direction = ExploreDirections::TopRight; //Go to next corner
+				pBlackboard->ChangeData("ExploreDirection", direction);
+			}
+			break;
+		case ExploreDirections::TopRight:
+			nextTargetPos = pInterface->NavMesh_GetClosestPathPoint(topRight);
+			seek.SetTarget(nextTargetPos);
+			if (topRight.DistanceSquared(agent.Position) <= 5.f)//Arrived at location
+			{
+				direction = ExploreDirections::BottomLeft; //Go to next corner
+				pBlackboard->ChangeData("ExploreDirection", direction);
+			}
+			break;
+		case ExploreDirections::BottomLeft:
+			nextTargetPos = pInterface->NavMesh_GetClosestPathPoint(bottomLeft);
+			seek.SetTarget(nextTargetPos);
+			if (bottomLeft.DistanceSquared(agent.Position) <= 5.f)//Arrived at location
+			{
+				direction = ExploreDirections::BottomRight; //Go to next corner
+				pBlackboard->ChangeData("ExploreDirection", direction);
+			}
+			break;
+		case ExploreDirections::BottomRight:
+			nextTargetPos = pInterface->NavMesh_GetClosestPathPoint(bottomRight);
+			seek.SetTarget(nextTargetPos);
+			if (bottomRight.DistanceSquared(agent.Position) <= 5.f)//Arrived at location
+			{
+				direction = ExploreDirections::TopLeft; //Go to next corner, made full route
+				pBlackboard->ChangeData("ExploreDirection", direction);
+			}
+			break;
+		default:
+			return Elite::BehaviorState::Failure;
+		}
+
+		pSteeringBehaviour = seek.CalculateSteering(dt, &agent);
+		pBlackboard->ChangeData("SteeringBehaviour", pSteeringBehaviour);
 		return Elite::BehaviorState::Success;
 	}
 }
