@@ -104,8 +104,8 @@ SteeringPlugin_Output Flee::CalculateSteering(float deltaT, AgentInfo* pAgent)
 	const Elite::Vector2 desiredVector = Elite::Vector2(m_Target.Location - pAgent->Position);
 	const Elite::Vector2 lookVector{ std::cosf(pAgent->Orientation), std::sinf(pAgent->Orientation) };
 
-	if (!(fabsf(Elite::AngleBetween(lookVector, desiredVector)) < 0.1f))
-	{
+	//if (!(fabsf(Elite::AngleBetween(lookVector, desiredVector)) < 0.05f))
+	//{
 		if (Elite::AngleBetween(lookVector, desiredVector) > 0)
 		{
 			steering.AngularVelocity = pAgent->MaxAngularSpeed;
@@ -115,7 +115,7 @@ SteeringPlugin_Output Flee::CalculateSteering(float deltaT, AgentInfo* pAgent)
 			steering.AngularVelocity = -pAgent->MaxAngularSpeed;
 		}
 
-	}
+	//}
 
 	return steering;
 }

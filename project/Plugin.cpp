@@ -43,6 +43,12 @@ void Plugin::Initialize(IBaseInterface* pInterface, PluginInfo& info)
 						new Elite::BehaviorConditionalBool(&m_pWorldState->ChangeWorldState().lowHP),
 						new Elite::BehaviorAction(BT_Actions::UseMedkit)
 					}),
+				//Flee from purges
+				new Elite::BehaviorSequence(
+					{
+						new Elite::BehaviorConditionalBool(&m_pWorldState->ChangeWorldState().seePurge),
+						new Elite::BehaviorAction(BT_Actions::FleePurge)
+					}),
 				//Shoot the enemies
 				new Elite::BehaviorSequence(
 					{
@@ -372,11 +378,7 @@ Elite::Blackboard* Plugin::CreateBlackboard(AgentInfo& a)
 	pBlackboard->AddData("FoundHouses", std::vector<std::pair<HouseInfo, float>>{});
 	pBlackboard->AddData("TargetHouse", HouseInfo{});
 	pBlackboard->AddData("HouseEntrance", Elite::Vector2{});
-	//pBlackboard->AddData("EntranceSet", bool{ false });
-	//pBlackboard->AddData("LeavingHouse", bool{ false });
-	//pBlackboard->AddData("MovingToHouse", bool{ false });
 	pBlackboard->AddData("CurrentTimeInHouse", float{});
-	//pBlackboard->AddData("AgentInHouse", bool{ false });
 
 	//Item and enemy stuff (entities)
 	pBlackboard->AddData("EnemiesInFOV", std::vector<EntityInfo*>{});

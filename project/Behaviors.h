@@ -35,7 +35,6 @@ namespace BT_Actions
 		float dt{};
 		SteeringPlugin_Output pSteeringBehaviour{};
 		Seek seek{};
-		Wander wander{};
 		IExamInterface* pInterface{};
 
 		float currentTimeInHouse{};
@@ -70,17 +69,12 @@ namespace BT_Actions
 			return Elite::BehaviorState::Failure;
 		}
 
-		if (!pBlackboard->GetData("SteeringBehaviour", pSteeringBehaviour) || &pSteeringBehaviour == nullptr)
+		if (!pBlackboard->GetData("SteeringBehaviour", pSteeringBehaviour))
 		{
 			return Elite::BehaviorState::Failure;
 		}
 
 		if (!pBlackboard->GetData("Seek", seek))
-		{
-			return Elite::BehaviorState::Failure;
-		}
-
-		if (!pBlackboard->GetData("Wander", wander))
 		{
 			return Elite::BehaviorState::Failure;
 		}
@@ -121,7 +115,7 @@ namespace BT_Actions
 		const float maxTimeIdleInHouse{ 3.f };
 		Elite::Vector2 nextTargetPos = pInterface->NavMesh_GetClosestPathPoint(target);
 		pInterface->Draw_Circle(nextTargetPos, 1, { 0,0,1 }, pInterface->NextDepthSlice());
-		pInterface->Draw_Circle(houseEntrance, 1, { 0,1,0 }, pInterface->NextDepthSlice());
+		//pInterface->Draw_Circle(houseEntrance, 1, { 0,1,0 }, pInterface->NextDepthSlice());
 
 		if (pWorldState->ChangeWorldState().movingToHouse)
 		{
@@ -290,10 +284,13 @@ namespace BT_Actions
 			}
 		}
 
+		const Elite::Vector2 nextTargetPos = pInterface->NavMesh_GetClosestPathPoint(target);
+
 		if (hasGun)
 		{
 			target = pEnemyVec[0]->Location;
-			pFlee.SetTarget(target);
+			pFlee.SetTarget(nextTargetPos);
+			pFlee.SetFleeRadius(pAgent.FOV_Range);
 			pSteering = pFlee.CalculateSteering(dt, &pAgent);
 			pBlackboard->ChangeData("Target", target);
 			pBlackboard->ChangeData("SteeringBehaviour", pSteering);
@@ -353,17 +350,19 @@ namespace BT_Actions
 			return Elite::BehaviorState::Failure;
 		}
 
-		if (pEnemyVec[0]->Location.DistanceSquared(agent.Position) <= agent.GrabRange * 2 && hasShotgun)//using grab range since i kinda know the size (is rendered)
+		if (pEnemyVec[0]->Location.DistanceSquared(agent.Position) <= (agent.FOV_Range / 2) && hasShotgun)//using grab range since i kinda know the size (is rendered)
 		{
 			pInterface->Inventory_UseItem(1);
 			return Elite::BehaviorState::Success;
 		}
-		else if(hasPistol)
+
+		if(hasPistol)
 		{
 			pInterface->Inventory_UseItem(0);
 			return Elite::BehaviorState::Success;
 		}
-		else if(hasShotgun)
+
+		if(hasShotgun)
 		{
 			pInterface->Inventory_UseItem(1);
 			return Elite::BehaviorState::Success;
@@ -501,24 +500,6 @@ namespace BT_Actions
 						pInterface->Inventory_AddItem(2, info);
 						return Elite::BehaviorState::Success;
 					}
-					//Don't destroy item here because there's a second slot to check
-				}
-				else
-				{
-					pInterface->Item_Grab(*item, info);
-					pInterface->Inventory_AddItem(2, info);
-					return Elite::BehaviorState::Success;
-				}
-
-				if (pInterface->Inventory_GetItem(3, tempInfo))
-				{
-					if (pInterface->Medkit_GetHealth(tempInfo) < pInterface->Medkit_GetHealth(info))
-					{
-						pInterface->Inventory_RemoveItem(3);
-						pInterface->Item_Grab(*item, info);
-						pInterface->Inventory_AddItem(3, info);
-						return Elite::BehaviorState::Success;
-					}
 					else //destroy item if worse to clear item spawn point
 					{
 						pInterface->Item_Destroy(*item);
@@ -528,12 +509,30 @@ namespace BT_Actions
 				else
 				{
 					pInterface->Item_Grab(*item, info);
-					pInterface->Inventory_AddItem(3, info);
+					pInterface->Inventory_AddItem(2, info);
 					return Elite::BehaviorState::Success;
 				}
 			}
 			case eItemType::FOOD:
 			{
+				if (pInterface->Inventory_GetItem(3, tempInfo))
+				{
+					if (pInterface->Food_GetEnergy(tempInfo) < pInterface->Food_GetEnergy(info))
+					{
+						pInterface->Inventory_RemoveItem(3);
+						pInterface->Item_Grab(*item, info);
+						pInterface->Inventory_AddItem(3, info);
+						return Elite::BehaviorState::Success;
+					}
+					//Don't destroy item here because there's a second slot to check
+				}
+				else
+				{
+					pInterface->Item_Grab(*item, info);
+					pInterface->Inventory_AddItem(3, info);
+					return Elite::BehaviorState::Success;
+				}
+
 				if (pInterface->Inventory_GetItem(4, tempInfo))
 				{
 					if (pInterface->Food_GetEnergy(tempInfo) < pInterface->Food_GetEnergy(info))
@@ -684,10 +683,16 @@ namespace BT_Actions
 #pragma endregion
 
 		ItemInfo foodInfo{};
-		if (pInterface->Inventory_GetItem(4, foodInfo))
+		if (pInterface->Inventory_GetItem(3, foodInfo))
 		{
 			pInterface->Inventory_UseItem(4);
 			pInterface->Inventory_RemoveItem(4);
+			return Elite::BehaviorState::Success;
+		}
+		else if (pInterface->Inventory_GetItem(4, foodInfo))
+		{
+			pInterface->Inventory_UseItem(3);
+			pInterface->Inventory_RemoveItem(3);
 			return Elite::BehaviorState::Success;
 		}
 		return Elite::BehaviorState::Failure;
@@ -713,13 +718,75 @@ namespace BT_Actions
 			pInterface->Inventory_RemoveItem(2);
 			return Elite::BehaviorState::Success;
 		}
-		else if(pInterface->Inventory_GetItem(3, medkitInfo))
-		{
-			pInterface->Inventory_UseItem(3);
-			pInterface->Inventory_RemoveItem(3);
-			return Elite::BehaviorState::Success;
-		}
 		return Elite::BehaviorState::Failure;
+	}
+
+	Elite::BehaviorState FleePurge(Elite::Blackboard* pBlackboard)
+	{
+#pragma region GetVariables
+
+		AgentInfo pAgent{};
+		SteeringPlugin_Output pSteering{};
+		Flee pFlee{};
+		float dt{};
+		std::vector<EntityInfo*> pPurgeVec{};
+		Elite::Vector2 target{};
+		IExamInterface* pInterface{};
+
+		if (!pBlackboard->GetData("Agent", pAgent))
+		{
+			return Elite::BehaviorState::Failure;
+		}
+
+		if (!pBlackboard->GetData("SteeringBehaviour", pSteering))
+		{
+			return Elite::BehaviorState::Failure;
+		}
+
+		if (!pBlackboard->GetData("Flee", pFlee))
+		{
+			return Elite::BehaviorState::Failure;
+		}
+
+		if (!pBlackboard->GetData("dt", dt))
+		{
+			return Elite::BehaviorState::Failure;
+		}
+
+		if (!pBlackboard->GetData("PurgesInFOV", pPurgeVec))
+		{
+			return Elite::BehaviorState::Failure;
+		}
+
+		if (!pBlackboard->GetData("Target", target))
+		{
+			return Elite::BehaviorState::Failure;
+		}
+
+		if (!pBlackboard->GetData("Interface", pInterface) || pInterface == nullptr)
+		{
+			return Elite::BehaviorState::Failure;
+		}
+
+#pragma endregion
+		EntityInfo purgeEntity = *pPurgeVec[0];
+		PurgeZoneInfo purge{};
+		pInterface->PurgeZone_GetInfo(purgeEntity, purge);
+
+		const Elite::Vector2 nextTargetPos = pInterface->NavMesh_GetClosestPathPoint(target);
+
+		if (purge.Center.DistanceSquared(pAgent.Position) < purge.Radius * purge.Radius + pAgent.FOV_Range)
+		{
+			target = purge.Center;
+			pFlee.SetTarget(nextTargetPos);
+			pFlee.SetFleeRadius(purge.Radius + pAgent.FOV_Range);
+			pSteering = pFlee.CalculateSteering(dt, &pAgent);
+			pBlackboard->ChangeData("Target", target);
+			pBlackboard->ChangeData("SteeringBehaviour", pSteering);
+			pBlackboard->ChangeData("Flee", pFlee);
+			return Elite::BehaviorState::Running;
+		}
+		return Elite::BehaviorState::Running;
 	}
 }
 
