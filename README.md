@@ -23,7 +23,8 @@ This would also be easier to implement if I had used a finite state machine wher
 ## Acknowledgements
 
  https://www.youtube.com/watch?v=PaOLBOuyswI
- Three States and a Plan: The A.I. of F.E.A.R.
+
+	Three States and a Plan: The A.I. of F.E.A.R.
 	Jeff Orkin
 	Monolith Productions / M.I.T. Media Lab, Cognitive Machines Group
 	http://www.jorkin.com
