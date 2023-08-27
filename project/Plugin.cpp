@@ -88,8 +88,8 @@ void Plugin::InitGameDebugParams(GameDebugParams& params)
 	params.AutoGrabClosestItem = true; //A call to Item_Grab(...) returns the closest item that can be grabbed. (EntityInfo argument is ignored)
 	params.StartingDifficultyStage = 1;
 	params.InfiniteStamina = false;
-	params.SpawnDebugPistol = false;
-	params.SpawnDebugShotgun = false;
+	params.SpawnDebugPistol = true;
+	params.SpawnDebugShotgun = true;
 	params.SpawnPurgeZonesOnMiddleClick = true;
 	params.PrintDebugMessages = true;
 	params.ShowDebugItemNames = true;
@@ -178,14 +178,18 @@ SteeringPlugin_Output Plugin::UpdateSteering(float dt)
 	auto vHousesInFOV = GetHousesInFOV();//uses m_pInterface->Fov_GetHouseByIndex(...)
 	auto vEntitiesInFOV = GetEntitiesInFOV(); //uses m_pInterface->Fov_GetEntityByIndex(...)
 
-	std::vector<HouseInfo*> housesInFOV{};
+	std::vector<HouseInfo> housesInFOV{};
 	std::vector<EntityInfo*> enemiesInFOV{};
 	std::vector<EntityInfo*> itemsInFOV{};
 	std::vector<EntityInfo*> purgesInFOV{};
 
 	for (auto house : vHousesInFOV)
 	{
-		housesInFOV.push_back(&house);
+		housesInFOV.push_back(house);
+		//if (house.Center.x < 20.f)
+		//{
+		//	std::cout << "hello there \n";
+		//}
 	}
 	m_pBlackboard->ChangeData("HousesInFOV", housesInFOV);
 
@@ -340,8 +344,8 @@ Elite::Blackboard* Plugin::CreateBlackboard(AgentInfo& a)
 	pBlackboard->AddData("Wander", Wander{});
 
 	//House stuff
-	pBlackboard->AddData("HousesInFOV", std::vector<HouseInfo*>{});
-	pBlackboard->AddData("FoundHouses", std::vector<std::pair<HouseInfo*, float>>{});
+	pBlackboard->AddData("HousesInFOV", std::vector<HouseInfo>{});
+	pBlackboard->AddData("FoundHouses", std::vector<std::pair<HouseInfo, float>>{});
 	pBlackboard->AddData("TargetHouse", HouseInfo{});
 	pBlackboard->AddData("HouseEntrance", Elite::Vector2{});
 	//pBlackboard->AddData("EntranceSet", bool{ false });

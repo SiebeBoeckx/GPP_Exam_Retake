@@ -118,34 +118,44 @@ void WorldState::UpdateWorldState(Elite::Blackboard& blackboard) //Intensive fun
 
 bool WorldState::NewHouseInFOV(Elite::Blackboard& blackboard)
 {
-	std::vector<HouseInfo*> pHousesInFOV{};
-	std::vector<std::pair<HouseInfo*, float>> pFoundHouses{};
+	std::vector<HouseInfo> pHousesInFOV{};
+	std::vector<std::pair<HouseInfo, float>> pFoundHouses{};
 
-	if (!blackboard.GetData("HousesInFOV", pHousesInFOV) || &pHousesInFOV == nullptr)
+	if (!blackboard.GetData("HousesInFOV", pHousesInFOV))
 	{
 		return false;
 	}
 
-	if (pHousesInFOV.size() == 0)
+	if (pHousesInFOV.empty())
 	{
 		return false;
 	}
 
-	if (!blackboard.GetData("FoundHouses", pFoundHouses) || &pFoundHouses == nullptr)
+	if (!blackboard.GetData("FoundHouses", pFoundHouses))
 	{
 		return false;
 	}
 
-	std::vector<HouseInfo*> foundHouseInfos{};
+	//std::cout << pHousesInFOV[0].Center << '\n';
+
+	if(pHousesInFOV[0].Center.x < 20.f)
+	{
+		//std::cout << "hello there \n";
+	}
+
+	//std::cout << pFoundHouses.size() << '\n';
+
+	std::vector<HouseInfo> foundHouseInfos{};
 
 	for (const auto house : pFoundHouses) //Extract house infos of all houses
 	{
 		foundHouseInfos.push_back(house.first);
 	}
 
-	for (const auto houseToCheck : foundHouseInfos)
+	for (const auto& houseToCheck : foundHouseInfos)
 	{
-		if (pHousesInFOV[0]->Center == houseToCheck->Center) //If house isn't already found
+		//std::cout << houseToCheck.Center << '\n';
+		if (pHousesInFOV[0].Center == houseToCheck.Center) //If house isn't already found
 		{
 			return false;
 		}
@@ -153,15 +163,16 @@ bool WorldState::NewHouseInFOV(Elite::Blackboard& blackboard)
 
 	pFoundHouses.push_back({ pHousesInFOV[0], 300.f });
 	blackboard.ChangeData("FoundHouses", pFoundHouses);
+	//std::cout << "Changed data\n";
 	return true;
 }
 
 bool WorldState::ShouldMoveToHouse(Elite::Blackboard& blackboard)
 {
-	std::vector<std::pair<HouseInfo*, float>> pFoundHouses{};
+	std::vector<std::pair<HouseInfo, float>> pFoundHouses{};
 	HouseInfo targetHouse{};
 	Elite::Vector2 target{};
-	std::vector<HouseInfo*> pHousesInFOV{};
+	std::vector<HouseInfo> pHousesInFOV{};
 	float dt{};
 
 	if (!blackboard.GetData("FoundHouses", pFoundHouses))
@@ -199,17 +210,17 @@ bool WorldState::ShouldMoveToHouse(Elite::Blackboard& blackboard)
 
 	if (!m_WorldStates.movingToHouse && !m_WorldStates.agentInHouse)
 	{
-		auto it = std::find_if(pFoundHouses.begin(), pFoundHouses.end(),
-			[](const std::pair<HouseInfo*, float>& pair)
+		const auto it = std::find_if(pFoundHouses.begin(), pFoundHouses.end(),
+			[](const std::pair<HouseInfo, float>& pair)
 			{
-				return pair.second >= 100.f;
+				return pair.second >= 300.f;
 			});
 
 		if (it != pFoundHouses.end())
 		{
 			// Element with second value > 300 found
 			// 'it' points to the found element
-			targetHouse = *it->first;
+			targetHouse = it->first;
 			blackboard.ChangeData("TargetHouse", targetHouse);
 			target = targetHouse.Center;
 			blackboard.ChangeData("Target", target);
@@ -229,7 +240,7 @@ bool WorldState::AgentInHouse(Elite::Blackboard& blackboard)
 	AgentInfo pAgent{};
 	HouseInfo targetHouse{};
 
-	if (!blackboard.GetData("Agent", pAgent) || &pAgent == nullptr)
+	if (!blackboard.GetData("Agent", pAgent))
 	{
 		return false;
 	}
@@ -254,6 +265,12 @@ bool WorldState::AgentInHouse(Elite::Blackboard& blackboard)
 		{
 			return true;
 		}
+	}
+
+	if(m_WorldStates.leavingHouse)
+	{
+		blackboard.ChangeData("TargetHouse", HouseInfo{});
+		m_WorldStates.leavingHouse = false;
 	}
 
 	return false;

@@ -28,7 +28,7 @@ namespace BT_Actions
 #pragma region GetVariables
 
 		AgentInfo pAgent{};
-		std::vector<std::pair<HouseInfo*, float>> pFoundHouses{};
+		std::vector<std::pair<HouseInfo, float>> pFoundHouses{};
 		HouseInfo pTargetHouse{};
 		Elite::Vector2 target{};
 		Elite::Vector2 houseEntrance{};
@@ -127,7 +127,10 @@ namespace BT_Actions
 
 		if (pWorldState->ChangeWorldState().movingToHouse)
 		{
+			//std::cout << std::to_string(target.x) << ", " << std::to_string(target.y) << '\n';
+			//std::cout << std::to_string(pTargetHouse.Center.x) << ", " << std::to_string(pTargetHouse.Center.y) << '\n';
 			target = pTargetHouse.Center;
+			pBlackboard->ChangeData("Target", target);
 
 			if (pWorldState->GetWorldState().agentInHouse && !pWorldState->GetWorldState().entranceSet && !pWorldState->GetWorldState().leavingHouse) //set entrance when entering house, also set the timer back to 0
 			{
@@ -173,9 +176,9 @@ namespace BT_Actions
 
 				// Find the HouseInfo* that matches the raw value
 				auto it = std::find_if(pFoundHouses.begin(), pFoundHouses.end(),
-					[&pTargetHouse](const std::pair<HouseInfo*, float>& pair) 
+					[&pTargetHouse](const std::pair<HouseInfo, float>& pair) 
 					{
-						return pair.first->Center.x == pTargetHouse.Center.x;
+						return pair.first.Center.x == pTargetHouse.Center.x;
 					});
 
 				// Check if the HouseInfo* was found before updating
@@ -183,10 +186,9 @@ namespace BT_Actions
 				{
 					// Update the float value of the pair
 					it->second = 0.0f;
+					pBlackboard->ChangeData("FoundHouses", pFoundHouses);
 				}
 
-				pBlackboard->ChangeData("FoundHouses", pFoundHouses);
-				pBlackboard->ChangeData("TargetHouse", HouseInfo{});
 				return Elite::BehaviorState::Success;
 			}
 
@@ -201,6 +203,14 @@ namespace BT_Actions
 				pBlackboard->ChangeData("SteeringBehaviour", pSteeringBehaviour);
 				pBlackboard->ChangeData("CurrentTimeInHouse", currentTimeInHouse);
 				return Elite::BehaviorState::Success;
+			}
+			else //Started leaving, but got interupted (enemy/item)
+			{
+				target = houseEntrance;
+				seek.SetTarget(target);
+				pSteeringBehaviour = seek.CalculateSteering(dt, &pAgent);
+				pBlackboard->ChangeData("Target", target);
+				pBlackboard->ChangeData("SteeringBehaviour", pSteeringBehaviour);
 			}
 		}
 
