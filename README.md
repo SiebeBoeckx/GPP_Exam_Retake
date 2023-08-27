@@ -23,16 +23,14 @@ This would also be easier to implement if I had used a finite state machine wher
 ## Acknowledgements
 
  https://www.youtube.com/watch?v=PaOLBOuyswI
-
- ## Demo
-
-Insert gif or link to demo
-
-
-
-	Three States and a Plan: The A.I. of F.E.A.R.
+ Three States and a Plan: The A.I. of F.E.A.R.
 	Jeff Orkin
 	Monolith Productions / M.I.T. Media Lab, Cognitive Machines Group
 	http://www.jorkin.com
 
 https://alumni.media.mit.edu/~jorkin/gdc2006_orkin_jeff_fear.pdf
+
+
+ ## Demo
+
+Insert gif or link to demo	
